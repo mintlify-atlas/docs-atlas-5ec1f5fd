@@ -48,7 +48,7 @@ icon: 'users'
 }
 ```
 
-See [schema.prisma:194-233](/workspace/source/prisma/schema.prisma)
+
 
 ### Unique Constraint
 
@@ -114,7 +114,7 @@ Memberships progress through different statuses:
   </Step>
 </Steps>
 
-See [schema.prisma:18-22](/workspace/source/prisma/schema.prisma)
+
 
 ### Status Transitions
 
@@ -180,7 +180,7 @@ Memberships include contract classification for employment tracking:
   </Tab>
 </Tabs>
 
-See [schema.prisma:56-62](/workspace/source/prisma/schema.prisma)
+
 
 ### Hourly Rate
 
@@ -197,7 +197,7 @@ hourlyRate: Decimal? @db.Decimal(10,2)
 - Payroll estimation
 - Client billing
 
-See [schema.prisma:205](/workspace/source/prisma/schema.prisma)
+
 
 ## Supervisor Hierarchy
 
@@ -219,7 +219,7 @@ Memberships support a self-referential supervisor structure:
 - `ON DELETE SetNull` - removing supervisor preserves subordinate records
 - One supervisor per member (direct reporting structure)
 
-See [schema.prisma:213-215](/workspace/source/prisma/schema.prisma)
+
 
 ### Hierarchy Example
 
@@ -318,7 +318,7 @@ const membership = await prisma.membership.findUnique({
 }
 ```
 
-See [schema.prisma:220](/workspace/source/prisma/schema.prisma) and [Memberships → RBAC](/concepts/rbac)
+
 
 ## Membership Operations
 
@@ -359,7 +359,7 @@ GET /api/companies/:companyId/members
 }
 ```
 
-See [memberships.service.ts:53-60](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### Invite Member
 
@@ -376,7 +376,7 @@ POST /api/companies/:companyId/members/invite
 // Sends real-time notification to user
 ```
 
-See [memberships.service.ts:88-142](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### Update Member Roles
 
@@ -393,7 +393,7 @@ PUT /api/companies/:companyId/members/:memberId/roles
 // Returns updated membership with new roles
 ```
 
-See [memberships.service.ts:144-160](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### Remove Member
 
@@ -405,7 +405,7 @@ DELETE /api/companies/:companyId/members/:memberId
 // User loses access to company immediately
 ```
 
-See [memberships.service.ts:162-166](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### User's Pending Invitations
 
@@ -435,7 +435,7 @@ GET /api/invitations/pending
 }
 ```
 
-See [memberships.service.ts:214-239](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### Accept Invitation
 
@@ -448,7 +448,7 @@ POST /api/invitations/:membershipId/accept
 // User can now access company resources
 ```
 
-See [memberships.service.ts:241-251](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### Decline Invitation
 
@@ -459,7 +459,7 @@ POST /api/invitations/:membershipId/decline
 // User will not join the company
 ```
 
-See [memberships.service.ts:253-260](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ## Search Non-Members
 
@@ -485,7 +485,7 @@ GET /api/companies/:companyId/members/search-non-members?search=john
 }
 ```
 
-See [memberships.service.ts:62-86](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ## Metadata Field
 
@@ -518,7 +518,7 @@ metadata: Json? @default("{}")
 }
 ```
 
-See [schema.prisma:199](/workspace/source/prisma/schema.prisma)
+
 
 ## Access Control
 
@@ -574,7 +574,7 @@ export const checkCompanyAccess = async (req, res, next) => {
 };
 ```
 
-See [company-access.middleware.ts:11-49](/workspace/source/src/common/middlewares/company-access.middleware.ts)
+
 
 ## Best Practices
 

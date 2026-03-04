@@ -61,7 +61,7 @@ Company invites allow **platform administrators** to invite specific users to cr
 - `usedByUser`: User who accepted the invite (set when used)
 - `createdCompany`: Company created from this invite (1:1 relationship)
 
-See [schema.prisma:339-367](/workspace/source/prisma/schema.prisma)
+
 
 ### Company Invite Flow
 
@@ -212,7 +212,7 @@ Member invites allow **authorized company members** to invite users to join thei
 
 This prevents multiple pending invites to the same email for the same company.
 
-See [schema.prisma:370-404](/workspace/source/prisma/schema.prisma)
+
 
 ### Member Invite Flow
 
@@ -286,7 +286,7 @@ See [schema.prisma:370-404](/workspace/source/prisma/schema.prisma)
   </Step>
 </Steps>
 
-See [memberships.service.ts:88-142](/workspace/source/src/modules/memberships/services/memberships.service.ts) and [memberships.service.ts:214-260](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ### Direct Member Addition
 
@@ -316,7 +316,7 @@ This creates a membership with `status: INVITED` and sends a real-time notificat
 }
 ```
 
-See [memberships.service.ts:125-140](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ## Invitation Security
 
@@ -356,7 +356,7 @@ return plainToken; // This is the only time we have access to it
 - Tokens are 256-bit entropy (2^256 possibilities)
 - Bcrypt is slow and resistant to brute-force
 
-See [companies.service.ts:114-115](/workspace/source/src/modules/companies/services/companies.service.ts)
+
 
 ### Token Validation
 
@@ -461,7 +461,7 @@ eventSource.addEventListener('invitation:new', (event) => {
 });
 ```
 
-See [memberships.service.ts:124-140](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ## Best Practices
 

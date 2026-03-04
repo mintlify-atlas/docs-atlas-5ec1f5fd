@@ -47,7 +47,7 @@ Permissions are defined globally and can be assigned at two levels:
 - `description`: Human-readable explanation of what the permission allows
 - `scope`: Determines how the permission can be assigned
 
-See [schema.prisma:273-282](/workspace/source/prisma/schema.prisma)
+
 
 ### Permission Scopes
 
@@ -151,7 +151,7 @@ Roles are company-specific and group related permissions:
 - `isSystem`: Protected system roles that cannot be deleted
 - `isDefault`: One role per company marked as default for new members
 
-See [schema.prisma:240-270](/workspace/source/prisma/schema.prisma)
+
 
 ### System Roles
 
@@ -191,7 +191,7 @@ When a company is created, four default roles are automatically generated:
   </Card>
 </CardGroup>
 
-See [companies.service.ts:37-87](/workspace/source/src/modules/companies/services/companies.service.ts)
+
 
 ### Role Management
 
@@ -263,7 +263,7 @@ A membership can have multiple roles, and a role can be assigned to multiple mem
 - `ON DELETE Cascade` on membership - removing membership deletes role assignments
 - `ON DELETE Restrict` on role - cannot delete role if assigned to any member
 
-See [schema.prisma:299-311](/workspace/source/prisma/schema.prisma)
+
 
 ### Assigning Roles to Members
 
@@ -283,7 +283,7 @@ This endpoint:
 2. Creates new assignments for the provided role IDs
 3. Returns the updated membership with new roles
 
-See [memberships.service.ts:144-160](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
 
 ## Permission Checks
 
@@ -309,7 +309,7 @@ router.post(
 3. Verifies `UserGlobalPermission` exists for the user
 4. Throws 403 Forbidden if permission not found
 
-See [check-global-permission.middleware.ts:9-55](/workspace/source/src/common/middlewares/check-global-permission.middleware.ts)
+
 
 ### Company Permission Check
 
@@ -378,7 +378,7 @@ This allows admins to:
 - Perform any action regardless of role assignments
 - Manage system-level configurations
 
-See [platform-admin.middleware.ts:43-72](/workspace/source/src/common/middlewares/platform-admin.middleware.ts)
+
 
 ## Permission Request System
 

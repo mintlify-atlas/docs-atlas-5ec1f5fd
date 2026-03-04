@@ -305,3 +305,109 @@ The `status` field can have one of the following values:
   "error": "Insufficient permissions to modify this company"
 }
 ```
+
+## Member Management
+
+Company member management endpoints allow you to view, invite, and manage members within a company.
+
+### Get Company Members
+
+```bash cURL
+GET /api/companies/{id}/members
+```
+
+<ParamField path="id" type="string" required>
+  Company's unique identifier (UUID)
+</ParamField>
+
+Returns all active members of the company with their roles and membership details.
+
+### Get Non-Members
+
+```bash cURL
+GET /api/companies/{id}/non-members
+```
+
+Returns users who are not members of this company (for inviting purposes).
+
+### Update Member Roles
+
+```bash cURL
+PATCH /api/companies/{id}/members/{memberId}/roles
+```
+
+<ParamField path="id" type="string" required>
+  Company's unique identifier (UUID)
+</ParamField>
+
+<ParamField path="memberId" type="string" required>
+  Membership's unique identifier (UUID)
+</ParamField>
+
+<ParamField body="roleIds" type="array" required>
+  Array of role UUIDs to assign to the member
+</ParamField>
+
+### Remove Member
+
+```bash cURL
+DELETE /api/companies/{id}/members/{memberId}
+```
+
+Removes a member from the company. This does not delete the user account, only the membership relationship.
+
+## Role Management
+
+Company role management endpoints allow you to create and manage custom roles within a company.
+
+### Get Company Roles
+
+```bash cURL
+GET /api/companies/{id}/roles
+```
+
+Returns all roles defined for the company, including system roles.
+
+### Create Custom Role
+
+```bash cURL
+POST /api/companies/{id}/roles
+```
+
+<ParamField body="name" type="string" required>
+  Role name (unique within company)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Role description
+</ParamField>
+
+<ParamField body="color" type="string">
+  Hex color code (e.g., "#6366F1")
+</ParamField>
+
+<ParamField body="permissionIds" type="array">
+  Array of permission UUIDs to assign to this role
+</ParamField>
+
+### Update Role
+
+```bash cURL
+PATCH /api/companies/{id}/roles/{roleId}
+```
+
+Updates role name, description, color, or permissions.
+
+### Delete Role
+
+```bash cURL
+DELETE /api/companies/{id}/roles/{roleId}
+```
+
+<Warning>
+Cannot delete system roles (Owner, Admin, Manager, Member) or roles currently assigned to members.
+</Warning>
+
+<Info>
+For detailed member invitation workflows, see the [Invitations API](/api/memberships/invitations).
+</Info>
