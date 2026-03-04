@@ -1,0 +1,142 @@
+{
+  "projectType": "api-service",
+  "projectName": "Platform API",
+  "projectDescription": "A multi-tenant SaaS platform API with RBAC, invitation management, and time tracking capabilities.",
+  "theme": "aspen",
+  "primaryColor": "#848c8e",
+  "lightColor": "#11161e",
+  "darkColor": "#cfd0d2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/multi-tenancy",
+              "concepts/rbac",
+              "concepts/invitations",
+              "concepts/memberships"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/company-setup",
+              "guides/user-management",
+              "guides/permissions",
+              "guides/time-tracking"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/register",
+              "api/auth/login",
+              "api/auth/refresh",
+              "api/auth/logout",
+              "api/auth/me"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/overview"
+            ]
+          },
+          {
+            "group": "Companies",
+            "pages": [
+              "api/companies/overview",
+              "api/companies/create",
+              "api/companies/manage"
+            ]
+          },
+          {
+            "group": "Company Requests",
+            "pages": [
+              "api/company-requests/overview"
+            ]
+          },
+          {
+            "group": "Memberships",
+            "pages": [
+              "api/memberships/invitations"
+            ]
+          },
+          {
+            "group": "Permissions",
+            "pages": [
+              "api/permissions/overview",
+              "api/permission-requests/overview"
+            ]
+          },
+          {
+            "group": "Time Tracking",
+            "pages": [
+              "api/time-tracker/entries",
+              "api/time-tracker/projects",
+              "api/time-tracker/categories"
+            ]
+          },
+          {
+            "group": "Clients",
+            "pages": [
+              "api/clients/overview"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-tenant company workspaces with isolation",
+    "JWT-based authentication with refresh tokens",
+    "Role-based access control (RBAC) with granular permissions",
+    "Company creation via invites or approval requests",
+    "Member invitation system with role assignment",
+    "Time tracking with projects and categories",
+    "Client management with sites and rate rules",
+    "Platform admin capabilities",
+    "Hierarchical supervision within companies",
+    "Audit trails and soft deletes"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/register - Register new user",
+    "POST /api/auth/login - Authenticate user",
+    "POST /api/auth/refresh - Refresh access token",
+    "POST /api/auth/logout - Logout user",
+    "GET /api/auth/me - Get current user",
+    "GET /api/users - List users",
+    "GET /api/companies - List companies",
+    "POST /api/companies - Create company",
+    "GET /api/company-requests - List company requests",
+    "POST /api/company-requests - Request company creation",
+    "GET /api/invitations - List invitations",
+    "POST /api/invitations - Create invitation",
+    "GET /api/permissions - List permissions",
+    "GET /api/permission-requests - List permission requests",
+    "GET /api/time-entries - List time entries",
+    "POST /api/time-entries - Create time entry",
+    "GET /api/projects - List projects",
+    "POST /api/projects - Create project",
+    "GET /api/clients - List clients",
+    "POST /api/clients - Create client",
+    "GET /api/time-entry-categories - List categories",
+    "GET /health - Health check"
+  ]
+}
