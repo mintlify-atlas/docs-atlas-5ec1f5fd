@@ -1,0 +1,205 @@
+---
+title: 'Introduction'
+description: 'A comprehensive overview of the Platform API - a multi-tenant SaaS platform built with Express, TypeScript, and Prisma'
+---
+
+## Welcome to Platform API
+
+Platform API is a production-ready, multi-tenant SaaS platform API built with modern technologies and best practices. It provides a robust foundation for building company-based workspaces with granular access control, invitation management, and comprehensive user management.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-tenant Architecture" icon="building">
+    Companies with isolated workspaces and comprehensive tenant management
+  </Card>
+  <Card title="Authentication & Authorization" icon="lock">
+    JWT-based authentication with secure refresh tokens and token revocation
+  </Card>
+  <Card title="Role-Based Access Control" icon="shield">
+    Granular permissions system with company-scoped and global permissions
+  </Card>
+  <Card title="Invitation System" icon="envelope">
+    Platform admins can invite companies, company members can invite users
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+The Platform API follows a modular, service-oriented architecture designed for scalability and maintainability:
+
+```
+src/
+├── app.ts              # Express app configuration
+├── main.ts             # Server bootstrap
+├── routes.ts           # Main route registry
+├── common/             # Shared utilities
+│   ├── errors/         # Error handling
+│   ├── logger/         # Winston logger
+│   ├── middlewares/    # Auth & validation
+│   └── utils/          # Helpers (JWT, tokens, async)
+├── config/             # Environment configuration
+├── db/                 # Prisma client
+└── modules/
+    └── auth/           # Authentication module
+        ├── controllers/
+        ├── services/
+        ├── schemas/
+        └── routes/
+```
+
+<Note>
+  Each module follows a clear separation of concerns with controllers handling HTTP requests, services containing business logic, and schemas for validation.
+</Note>
+
+## Tech Stack
+
+### Core Framework
+
+- **Runtime**: Node.js 18+ with TypeScript 5.9+
+- **Framework**: Express.js 5.2 - Fast, minimalist web framework
+- **Language**: TypeScript - Type-safe development
+
+### Database & ORM
+
+- **Database**: PostgreSQL 16+ - Robust relational database
+- **ORM**: Prisma 7.2 - Next-generation ORM with type safety
+- **Adapter**: @prisma/adapter-pg - Native PostgreSQL adapter
+
+### Authentication & Security
+
+- **JWT**: jsonwebtoken 9.0 - JSON Web Token implementation
+- **Hashing**: bcryptjs 3.0 - Password hashing with bcrypt
+- **Security**: helmet 8.1 - Secure Express apps with HTTP headers
+- **CORS**: cors 2.8 - Cross-Origin Resource Sharing
+
+### Validation & Logging
+
+- **Validation**: Zod 4.2 - TypeScript-first schema validation
+- **Logging**: Winston 3.19 - Universal logging library
+- **HTTP Logging**: Morgan 1.10 - HTTP request logger middleware
+
+### Development Tools
+
+- **Runtime**: tsx 4.21 - TypeScript execution with hot reload
+- **Build**: tsc-alias 1.8 - Path alias resolution for TypeScript
+
+## Database Schema
+
+The Platform API uses a comprehensive database schema designed for multi-tenancy:
+
+### Core Entities
+
+- **Users**: Global user accounts with email verification, password management, and activity tracking
+- **Companies**: Tenant workspaces with status management, soft deletes, and metadata support
+- **Memberships**: User-Company relationships with roles, hierarchy (supervisor chains), and contract information
+
+### RBAC System
+
+- **Roles**: Company-scoped roles with customizable permissions and colors
+- **Permissions**: Global permission catalog with scope (GLOBAL or COMPANY)
+- **RolePermission**: Many-to-many relationship between roles and permissions
+- **MembershipRole**: Assigns roles to company members
+- **UserGlobalPermission**: Platform-level permissions for users
+
+### Authentication
+
+- **RefreshToken**: Secure token storage with hashing, expiration, and revocation support
+
+### Invitation System
+
+- **CompanyInvite**: Single-use invites for creating companies (admin-issued)
+- **CompanyMemberInvite**: Invites for joining existing companies (member/admin-issued)
+
+### Additional Features
+
+- **CompanyRequest**: User-initiated company creation requests (approval workflow)
+- **PermissionRequest**: User-initiated permission requests (approval workflow)
+- **PlatformAdmin**: Super admin designation
+- **Projects, TimeEntry, Client**: Time tracking capabilities
+
+<Warning>
+  The database schema includes audit fields (createdAt, updatedAt, createdBy, updatedBy) and soft delete support (deletedAt) throughout.
+</Warning>
+
+## API Endpoints
+
+### Authentication
+
+The Platform API provides comprehensive authentication endpoints:
+
+- `POST /api/auth/register` - Register new user account
+- `POST /api/auth/login` - Login with email and password
+- `POST /api/auth/refresh` - Refresh access token using refresh token
+- `POST /api/auth/logout` - Logout and revoke refresh token
+- `GET /api/auth/me` - Get current user profile with permissions and companies
+
+### Health Check
+
+- `GET /health` - Service health status
+
+<Tip>
+  All endpoints return consistent JSON responses with `success` boolean and `data` or `error` fields.
+</Tip>
+
+## Security Features
+
+### Password Security
+
+- Passwords are hashed using bcrypt with salt rounds of 10
+- Minimum password length: 8 characters
+- Maximum password length: 100 characters
+
+### Token Management
+
+- **Access Tokens**: Short-lived JWT tokens (default: 15 minutes)
+- **Refresh Tokens**: Long-lived tokens (default: 7 days) stored as hashed values
+- **Token Revocation**: Refresh tokens can be revoked on logout
+- **Token Rotation**: New refresh token issued on each refresh
+
+### Account Protection
+
+- **Global Disable**: isDisabled flag blocks all user access
+- **Company-level Status**: Membership status controls company access
+- **Email Verification**: emailVerified flag tracks verification status
+- **Last Login Tracking**: lastLoginAt tracks user activity
+
+## Environment Configuration
+
+The Platform API requires the following environment variables:
+
+```bash
+# PostgreSQL Database
+POSTGRES_USER=your_db_user
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_DB=your_database_name
+
+# API Configuration
+NODE_ENV=production
+PORT=3000
+
+# JWT Configuration (use long random strings)
+JWT_SECRET=your_jwt_secret_min_32_chars
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_SECRET=your_refresh_secret_min_32_chars
+REFRESH_TOKEN_EXPIRES_IN=7d
+
+# Invite Expiry
+COMPANY_INVITE_EXPIRY_HOURS=72
+MEMBER_INVITE_EXPIRY_HOURS=168
+```
+
+<Note>
+  Generate secure secrets using: `openssl rand -base64 48`
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get the Platform API running locally in minutes
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn how to implement authentication in your application
+  </Card>
+</CardGroup>

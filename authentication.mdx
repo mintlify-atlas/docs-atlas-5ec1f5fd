@@ -1,0 +1,1113 @@
+---
+title: 'Authentication'
+description: 'Comprehensive guide to implementing JWT-based authentication with refresh tokens, security best practices, and token lifecycle management'
+---
+
+## Overview
+
+The Platform API uses a robust JWT-based authentication system with refresh token rotation, providing secure and scalable user authentication. This guide covers the complete authentication flow, token management, and security best practices.
+
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Database
+
+    Client->>API: POST /api/auth/register
+    API->>Database: Create user
+    Database-->>API: User created
+    API->>Database: Generate refresh token
+    Database-->>API: Token stored
+    API-->>Client: accessToken + refreshToken
+
+    Client->>API: POST /api/auth/login
+    API->>Database: Verify credentials
+    Database-->>API: User found
+    API->>Database: Generate refresh token
+    Database-->>API: Token stored
+    API-->>Client: accessToken + refreshToken
+
+    Client->>API: GET /api/auth/me (with accessToken)
+    API->>API: Verify JWT
+    API->>Database: Fetch user data
+    Database-->>API: User profile
+    API-->>Client: User data + permissions
+
+    Note over Client,API: Access token expires
+
+    Client->>API: POST /api/auth/refresh
+    API->>Database: Verify refresh token
+    Database-->>API: Token valid
+    API->>Database: Revoke old token
+    API->>Database: Generate new tokens
+    Database-->>API: Tokens stored
+    API-->>Client: New accessToken + refreshToken
+
+    Client->>API: POST /api/auth/logout
+    API->>Database: Revoke refresh token
+    Database-->>API: Token revoked
+    API-->>Client: Success
+```
+
+## Token Types
+
+### Access Tokens (JWT)
+
+Short-lived tokens used for authenticating API requests:
+
+- **Type**: JSON Web Token (JWT)
+- **Default Expiry**: 15 minutes
+- **Storage**: Client-side (memory, not localStorage)
+- **Transmission**: Authorization header (`Bearer` scheme)
+- **Payload**:
+  ```typescript
+  {
+    userId: string;     // User's unique identifier
+    email: string;      // User's email address
+    iat: number;        // Issued at timestamp
+    exp: number;        // Expiration timestamp
+  }
+  ```
+
+### Refresh Tokens
+
+Long-lived tokens used to obtain new access tokens:
+
+- **Type**: Cryptographically secure random string
+- **Default Expiry**: 7 days
+- **Storage**: Database (hashed with bcrypt)
+- **Transmission**: Request body
+- **Security**: One-time use with rotation
+
+<Warning>
+  **Security Best Practice**: Store access tokens in memory and refresh tokens in secure, httpOnly cookies. Never store tokens in localStorage due to XSS vulnerability.
+</Warning>
+
+## Registration
+
+Create a new user account with email and password.
+
+### Endpoint
+
+```
+POST /api/auth/register
+```
+
+### Request Body
+
+```typescript
+{
+  email: string;        // Max 320 chars, valid email format
+  fullName: string;     // Min 2, max 255 chars
+  password: string;     // Min 8, max 100 chars
+  phone?: string;       // Optional, max 20 chars
+}
+```
+
+### Validation Rules
+
+<CodeGroup>
+
+```typescript Schema
+import { z } from 'zod';
+
+export const registerSchema = z.object({
+  email: z.email('Invalid email format').max(320),
+  fullName: z.string().min(2).max(255),
+  password: z.string().min(8).max(100),
+  phone: z.string().max(20).optional(),
+});
+```
+
+</CodeGroup>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:4000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "fullName": "John Doe",
+    "password": "SecurePassword123",
+    "phone": "+1234567890"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:4000/api/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    fullName: 'John Doe',
+    password: 'SecurePassword123',
+    phone: '+1234567890',
+  }),
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:4000/api/auth/register',
+    json={
+        'email': 'user@example.com',
+        'fullName': 'John Doe',
+        'password': 'SecurePassword123',
+        'phone': '+1234567890',
+    }
+)
+
+data = response.json()
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com",
+      "fullName": "John Doe",
+      "phone": "+1234567890",
+      "avatar": null,
+      "emailVerified": false,
+      "createdAt": "2024-03-04T10:30:00.000Z"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJpYXQiOjE3MDk1NTQ2MDAsImV4cCI6MTcwOTU1NTUwMH0...",
+    "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6"
+  }
+}
+```
+
+### Implementation Details
+
+The registration process:
+
+1. **Email Uniqueness Check**: Verifies email is not already registered
+2. **Password Hashing**: Uses bcrypt with 10 salt rounds
+3. **User Creation**: Creates user record in database
+4. **Token Generation**: Generates both access and refresh tokens
+5. **Token Storage**: Stores hashed refresh token in database
+
+<CodeGroup>
+
+```typescript Service Implementation
+export class AuthService {
+  async register(data: RegisterDto) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      throw ApiError.conflict("Email already registered");
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        passwordHash,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        avatar: true,
+        emailVerified: true,
+        createdAt: true,
+      },
+    });
+
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+    });
+
+    const refreshToken = await generateRefreshToken(user.id);
+
+    return { user, accessToken, refreshToken };
+  }
+}
+```
+
+</CodeGroup>
+
+## Login
+
+Authenticate with email and password to receive tokens.
+
+### Endpoint
+
+```
+POST /api/auth/login
+```
+
+### Request Body
+
+```typescript
+{
+  email: string;        // Valid email format
+  password: string;     // User's password
+}
+```
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:4000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePassword123"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:4000/api/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    password: 'SecurePassword123',
+  }),
+});
+
+const { data } = await response.json();
+const { accessToken, refreshToken } = data;
+
+// Store tokens securely
+localStorage.setItem('accessToken', accessToken);
+localStorage.setItem('refreshToken', refreshToken);
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com",
+      "fullName": "John Doe",
+      "phone": "+1234567890",
+      "avatar": null,
+      "emailVerified": false
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7"
+  }
+}
+```
+
+### Implementation Details
+
+The login process:
+
+1. **User Lookup**: Finds user by email
+2. **Account Status Check**: Verifies account is not disabled
+3. **Password Verification**: Compares provided password with stored hash using bcrypt
+4. **Activity Update**: Updates lastLoginAt timestamp
+5. **Token Generation**: Creates new access and refresh tokens
+
+### Error Responses
+
+<CodeGroup>
+
+```json Invalid Credentials
+{
+  "success": false,
+  "error": {
+    "message": "Invalid credentials",
+    "statusCode": 401
+  }
+}
+```
+
+```json Account Disabled
+{
+  "success": false,
+  "error": {
+    "message": "Account is disabled",
+    "statusCode": 403
+  }
+}
+```
+
+</CodeGroup>
+
+## Refresh Token
+
+Obtain a new access token using a valid refresh token.
+
+### Endpoint
+
+```
+POST /api/auth/refresh
+```
+
+### Headers
+
+```
+Authorization: Bearer <current_access_token>
+```
+
+<Note>
+  The refresh endpoint requires both the expired/expiring access token in the Authorization header and the refresh token in the request body. This design prevents token theft scenarios.
+</Note>
+
+### Request Body
+
+```typescript
+{
+  refreshToken: string;     // Valid refresh token from login/register
+}
+```
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:4000/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{
+    "refreshToken": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7"
+  }'
+```
+
+```javascript JavaScript
+const accessToken = localStorage.getItem('accessToken');
+const refreshToken = localStorage.getItem('refreshToken');
+
+const response = await fetch('http://localhost:4000/api/auth/refresh', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`,
+  },
+  body: JSON.stringify({ refreshToken }),
+});
+
+const { data } = await response.json();
+
+// Update stored tokens
+localStorage.setItem('accessToken', data.accessToken);
+localStorage.setItem('refreshToken', data.refreshToken);
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.NEW_TOKEN...",
+    "refreshToken": "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8"
+  }
+}
+```
+
+### Token Rotation
+
+The refresh process implements token rotation for enhanced security:
+
+1. **Verify Refresh Token**: Checks token is valid and not expired
+2. **User Validation**: Ensures user exists and is not disabled
+3. **Revoke Old Token**: Marks the used refresh token as revoked
+4. **Generate New Tokens**: Creates both new access and refresh tokens
+5. **Store New Token**: Saves new refresh token hash in database
+
+<CodeGroup>
+
+```typescript Token Generation Utility
+export const generateRefreshToken = async (userId: string): Promise<string> => {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = await bcrypt.hash(token, 10);
+
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      tokenHash,
+      expiresAt: new Date(Date.now() + expiryMs(env.REFRESH_TOKEN_EXPIRES_IN)),
+    },
+  });
+
+  return token;
+};
+```
+
+```typescript Token Verification
+export const verifyRefreshToken = async (
+  token: string,
+  userId: string
+): Promise<boolean> => {
+  const tokens = await prisma.refreshToken.findMany({
+    where: {
+      userId,
+      expiresAt: { gte: new Date() },
+      revokedAt: null,
+    },
+  });
+
+  for (const dbToken of tokens) {
+    const isValid = await bcrypt.compare(token, dbToken.tokenHash);
+    if (isValid) return true;
+  }
+
+  return false;
+};
+```
+
+</CodeGroup>
+
+## Get Current User
+
+Retrieve the authenticated user's profile, permissions, and company memberships.
+
+### Endpoint
+
+```
+GET /api/auth/me
+```
+
+### Headers
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl http://localhost:4000/api/auth/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+```javascript JavaScript
+const accessToken = localStorage.getItem('accessToken');
+
+const response = await fetch('http://localhost:4000/api/auth/me', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+  },
+});
+
+const { data } = await response.json();
+console.log('User:', data);
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "fullName": "John Doe",
+    "phone": "+1234567890",
+    "avatar": null,
+    "emailVerified": false,
+    "lastLoginAt": "2024-03-04T10:30:00.000Z",
+    "createdAt": "2024-03-01T08:00:00.000Z",
+    "isPlatformAdmin": false,
+    "globalPermissions": [
+      {
+        "key": "manage:companies",
+        "description": "Can manage all companies",
+        "grantedAt": "2024-03-02T12:00:00.000Z"
+      }
+    ],
+    "companies": [
+      {
+        "id": "660e8400-e29b-41d4-a716-446655440001",
+        "name": "Acme Corporation",
+        "slug": "acme-corp",
+        "logo": "https://example.com/logos/acme.png",
+        "status": "ACTIVE",
+        "membershipId": "770e8400-e29b-41d4-a716-446655440002",
+        "membershipStatus": "ACTIVE",
+        "roles": [
+          {
+            "id": "880e8400-e29b-41d4-a716-446655440003",
+            "name": "Owner",
+            "color": "#6366F1"
+          }
+        ],
+        "permissions": [
+          "company:read",
+          "company:write",
+          "members:invite",
+          "members:manage",
+          "roles:manage"
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Data Structure
+
+The `/me` endpoint returns comprehensive user information:
+
+- **User Profile**: Basic user information
+- **Platform Admin Status**: Boolean indicating super admin privileges
+- **Global Permissions**: Platform-level permissions granted to the user
+- **Company Memberships**: List of companies with:
+  - Company details (name, slug, logo, status)
+  - Membership information (ID, status)
+  - Assigned roles within the company
+  - Aggregated permissions from all roles
+
+## Logout
+
+Revoke the refresh token and end the user session.
+
+### Endpoint
+
+```
+POST /api/auth/logout
+```
+
+### Headers
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Request Body
+
+```typescript
+{
+  refreshToken: string;     // Refresh token to revoke
+}
+```
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:4000/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{
+    "refreshToken": "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8"
+  }'
+```
+
+```javascript JavaScript
+const accessToken = localStorage.getItem('accessToken');
+const refreshToken = localStorage.getItem('refreshToken');
+
+const response = await fetch('http://localhost:4000/api/auth/logout', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`,
+  },
+  body: JSON.stringify({ refreshToken }),
+});
+
+// Clear stored tokens
+localStorage.removeItem('accessToken');
+localStorage.removeItem('refreshToken');
+
+// Redirect to login page
+window.location.href = '/login';
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+## Token Lifecycle Management
+
+### Access Token Expiry
+
+Access tokens expire after the configured duration (default: 15 minutes):
+
+```typescript
+// JWT Configuration
+JWT_EXPIRES_IN=15m  // 15 minutes
+```
+
+### Refresh Token Expiry
+
+Refresh tokens expire after the configured duration (default: 7 days):
+
+```typescript
+// Refresh Token Configuration
+REFRESH_TOKEN_EXPIRES_IN=7d  // 7 days
+```
+
+### Token Refresh Strategy
+
+<Tip>
+  **Best Practice**: Implement automatic token refresh before the access token expires to provide seamless user experience.
+</Tip>
+
+<CodeGroup>
+
+```javascript Automatic Refresh
+class AuthService {
+  constructor() {
+    this.refreshTimer = null;
+  }
+
+  // Schedule refresh before token expires
+  scheduleTokenRefresh(expiresIn) {
+    // Refresh 1 minute before expiry
+    const refreshTime = (expiresIn - 60) * 1000;
+    
+    this.refreshTimer = setTimeout(async () => {
+      try {
+        await this.refreshToken();
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+        this.logout();
+      }
+    }, refreshTime);
+  }
+
+  async refreshToken() {
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const { data } = await response.json();
+    
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+
+    // Schedule next refresh
+    const decoded = this.decodeToken(data.accessToken);
+    const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+    this.scheduleTokenRefresh(expiresIn);
+  }
+
+  decodeToken(token) {
+    return JSON.parse(atob(token.split('.')[1]));
+  }
+}
+```
+
+```javascript Axios Interceptor
+import axios from 'axios';
+
+// Request interceptor to add token
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor to handle token refresh
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 and not already retried
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        const accessToken = localStorage.getItem('accessToken');
+        
+        const response = await axios.post('/api/auth/refresh', 
+          { refreshToken },
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+
+        const { data } = response.data;
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        return axios(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+```
+
+</CodeGroup>
+
+## Security Best Practices
+
+### Token Storage
+
+<CardGroup cols={2}>
+  <Card title="Access Tokens" icon="memory">
+    **Recommended**: Store in memory (React state, Vuex store)
+    
+    **Acceptable**: SessionStorage (for page refresh persistence)
+    
+    **Never**: LocalStorage (XSS vulnerability)
+  </Card>
+  <Card title="Refresh Tokens" icon="cookie">
+    **Recommended**: Secure, httpOnly cookies
+    
+    **Acceptable**: Encrypted localStorage with CSRF protection
+    
+    **Never**: Plain localStorage without encryption
+  </Card>
+</CardGroup>
+
+### Password Requirements
+
+```typescript
+// Minimum requirements (enforced by Zod schema)
+- Minimum length: 8 characters
+- Maximum length: 100 characters
+- Recommended: Include uppercase, lowercase, numbers, special characters
+```
+
+<Note>
+  Consider implementing additional password strength validation on the client side for better user experience.
+</Note>
+
+### HTTPS Only
+
+<Warning>
+  **Critical**: Always use HTTPS in production. JWT tokens transmitted over HTTP can be intercepted.
+</Warning>
+
+```nginx
+# Nginx configuration example
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://localhost:4000;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+### Rate Limiting
+
+Implement rate limiting to prevent brute force attacks:
+
+```javascript
+import rateLimit from 'express-rate-limit';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per window
+  message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+```
+
+### Token Revocation
+
+Refresh tokens are automatically revoked on:
+
+1. **Logout**: Explicit user logout
+2. **Token Refresh**: Old token revoked when new one is issued
+3. **Account Disable**: All tokens revoked when account is disabled
+
+### Database Schema
+
+Refresh tokens are stored securely in the database:
+
+```prisma
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @db.VarChar(255)  // Hashed with bcrypt
+  revokedAt DateTime?                    // Token revocation timestamp
+  expiresAt DateTime                     // Token expiration
+  createdAt DateTime  @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+```
+
+## Error Handling
+
+### Common Authentication Errors
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    **Causes**:
+    - Invalid credentials (login)
+    - Expired or invalid access token
+    - Invalid refresh token
+    - User not found
+
+    **Response**:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "message": "Invalid credentials",
+        "statusCode": 401
+      }
+    }
+    ```
+
+    **Solution**: Re-authenticate user by redirecting to login page
+  </Accordion>
+
+  <Accordion title="403 Forbidden">
+    **Causes**:
+    - Account is disabled (isDisabled = true)
+    - Insufficient permissions
+    - Company membership suspended
+
+    **Response**:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "message": "Account is disabled",
+        "statusCode": 403
+      }
+    }
+    ```
+
+    **Solution**: Contact administrator for account reactivation
+  </Accordion>
+
+  <Accordion title="409 Conflict">
+    **Causes**:
+    - Email already registered (during registration)
+
+    **Response**:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "message": "Email already registered",
+        "statusCode": 409
+      }
+    }
+    ```
+
+    **Solution**: Use a different email or attempt login
+  </Accordion>
+
+  <Accordion title="422 Unprocessable Entity">
+    **Causes**:
+    - Invalid request body (Zod validation failure)
+    - Missing required fields
+    - Invalid email format
+    - Password too short
+
+    **Response**:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "message": "Validation error",
+        "statusCode": 422,
+        "details": [
+          {
+            "field": "password",
+            "message": "String must contain at least 8 character(s)"
+          }
+        ]
+      }
+    }
+    ```
+
+    **Solution**: Fix validation errors and retry
+  </Accordion>
+</AccordionGroup>
+
+## Testing Authentication
+
+<CodeGroup>
+
+```javascript Complete Auth Flow
+class AuthClient {
+  constructor(baseURL = 'http://localhost:4000') {
+    this.baseURL = baseURL;
+    this.accessToken = null;
+    this.refreshToken = null;
+  }
+
+  async register(email, fullName, password, phone) {
+    const response = await fetch(`${this.baseURL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, fullName, password, phone }),
+    });
+
+    const { data } = await response.json();
+    this.accessToken = data.accessToken;
+    this.refreshToken = data.refreshToken;
+    return data;
+  }
+
+  async login(email, password) {
+    const response = await fetch(`${this.baseURL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const { data } = await response.json();
+    this.accessToken = data.accessToken;
+    this.refreshToken = data.refreshToken;
+    return data;
+  }
+
+  async getProfile() {
+    const response = await fetch(`${this.baseURL}/api/auth/me`, {
+      headers: { 'Authorization': `Bearer ${this.accessToken}` },
+    });
+
+    const { data } = await response.json();
+    return data;
+  }
+
+  async refresh() {
+    const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+      body: JSON.stringify({ refreshToken: this.refreshToken }),
+    });
+
+    const { data } = await response.json();
+    this.accessToken = data.accessToken;
+    this.refreshToken = data.refreshToken;
+    return data;
+  }
+
+  async logout() {
+    const response = await fetch(`${this.baseURL}/api/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+      body: JSON.stringify({ refreshToken: this.refreshToken }),
+    });
+
+    this.accessToken = null;
+    this.refreshToken = null;
+    return await response.json();
+  }
+}
+
+// Usage
+const auth = new AuthClient();
+
+// Register
+await auth.register(
+  'test@example.com',
+  'Test User',
+  'SecurePass123',
+  '+1234567890'
+);
+
+// Get profile
+const profile = await auth.getProfile();
+console.log('User:', profile);
+
+// Logout
+await auth.logout();
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Role-Based Access Control" icon="shield" href="/concepts/rbac">
+    Learn about permissions and role management
+  </Card>
+  <Card title="Company Management" icon="building" href="/guides/company-setup">
+    Manage multi-tenant company workspaces
+  </Card>
+  <Card title="Invitation System" icon="envelope" href="/concepts/invitations">
+    Invite users and create companies
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/auth/register">
+    Complete API endpoint documentation
+  </Card>
+</CardGroup>

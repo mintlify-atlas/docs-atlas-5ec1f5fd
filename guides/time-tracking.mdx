@@ -1,0 +1,701 @@
+---
+title: Time Tracking
+description: Using the time tracking system, creating projects, logging time entries, managing categories, and client billing
+---
+
+## Overview
+
+The Platform API provides a comprehensive time tracking system with:
+
+- **Projects** - Organize work by project with colors and descriptions
+- **Time Entries** - Log hours worked with detailed information
+- **Categories** - Classify time (training, travel, normal work, etc.)
+- **Client Billing** - Track client work, sites, and billing rates
+- **Overtime Tracking** - Automatic and manual overtime detection
+- **Manager Logging** - Managers can log time on behalf of team members
+
+---
+
+## Projects
+
+### Create Project
+
+Projects help organize and categorize time entries:
+
+```bash Request
+POST /api/projects
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "companyId": "company-789",
+  "name": "Website Redesign",
+  "description": "Complete overhaul of company website",
+  "color": "#10B981",
+  "isActive": true
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "proj-123",
+    "companyId": "company-789",
+    "name": "Website Redesign",
+    "description": "Complete overhaul of company website",
+    "color": "#10B981",
+    "isActive": true,
+    "createdAt": "2026-03-04T18:41:00Z",
+    "updatedAt": "2026-03-04T18:41:00Z"
+  }
+}
+```
+
+### List Projects
+
+```bash Request
+GET /api/projects?companyId={companyId}&isActive=true
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "proj-123",
+      "companyId": "company-789",
+      "name": "Website Redesign",
+      "description": "Complete overhaul of company website",
+      "color": "#10B981",
+      "isActive": true,
+      "createdAt": "2026-03-04T18:41:00Z"
+    },
+    {
+      "id": "proj-456",
+      "name": "Mobile App Development",
+      "description": "iOS and Android app",
+      "color": "#3B82F6",
+      "isActive": true,
+      "createdAt": "2026-03-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 2,
+    "totalPages": 1
+  }
+}
+```
+
+### Update Project
+
+```bash Request
+PATCH /api/projects/{projectId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Website Redesign V2",
+  "isActive": false
+}
+```
+
+### Delete Project
+
+```bash Request
+DELETE /api/projects/{projectId}
+Authorization: Bearer {token}
+```
+
+<Warning>
+Deleting a project sets existing time entries' `projectId` to `NULL`. Consider marking as inactive instead.
+</Warning>
+
+### Project Colors
+
+Use hex color codes for visual organization:
+
+```javascript Color Examples
+const projectColors = {
+  development: '#10B981',  // Green
+  design: '#8B5CF6',       // Purple
+  marketing: '#F59E0B',    // Orange
+  support: '#EF4444',      // Red
+  research: '#3B82F6',     // Blue
+  admin: '#6B7280'         // Gray
+};
+```
+
+---
+
+## Time Entries
+
+### Create Time Entry
+
+Log time worked by users:
+
+```bash Request
+POST /api/time-entries
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "companyId": "company-789",
+  "projectId": "proj-123",
+  "date": "2026-03-04",
+  "hours": 8.5,
+  "startTime": "09:00",
+  "endTime": "17:30",
+  "title": "Implemented user authentication",
+  "description": "Built JWT-based auth system with refresh tokens",
+  "categoryId": "cat-development",
+  "clientId": "client-acme",
+  "clientSiteId": "site-headquarters"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "entry-001",
+    "userId": "user-123",
+    "companyId": "company-789",
+    "projectId": "proj-123",
+    "date": "2026-03-04",
+    "hours": 8.5,
+    "startTime": "09:00",
+    "endTime": "17:30",
+    "title": "Implemented user authentication",
+    "description": "Built JWT-based auth system with refresh tokens",
+    "isOvertime": false,
+    "appliedRatePerHour": null,
+    "categoryId": "cat-development",
+    "clientId": "client-acme",
+    "clientSiteId": "site-headquarters",
+    "loggedByUserId": null,
+    "createdAt": "2026-03-04T18:41:00Z",
+    "updatedAt": "2026-03-04T18:41:00Z"
+  }
+}
+```
+
+### Manager Logs Time for Team Member
+
+Managers can log time on behalf of their subordinates:
+
+```bash Request
+POST /api/time-entries
+Authorization: Bearer {manager-token}
+Content-Type: application/json
+
+{
+  "companyId": "company-789",
+  "targetUserId": "user-456",
+  "date": "2026-03-04",
+  "hours": 4.0,
+  "title": "Client meeting",
+  "description": "Logged by manager - employee forgot to log"
+}
+```
+
+<Info>
+**Manager Logging:** The `targetUserId` field specifies who the time is for, while `loggedByUserId` automatically tracks who created the entry.
+</Info>
+
+### List Time Entries
+
+```bash Request
+GET /api/time-entries?companyId={companyId}&startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "entry-001",
+      "userId": "user-123",
+      "date": "2026-03-04",
+      "hours": 8.5,
+      "title": "Implemented user authentication",
+      "project": {
+        "id": "proj-123",
+        "name": "Website Redesign",
+        "color": "#10B981"
+      },
+      "user": {
+        "id": "user-123",
+        "email": "john@acme.com",
+        "fullName": "John Doe"
+      },
+      "isOvertime": false,
+      "createdAt": "2026-03-04T18:41:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### Filter Time Entries
+
+<ParamField query="companyId" type="string" required>
+  Filter by company
+</ParamField>
+
+<ParamField query="projectId" type="string">
+  Filter by project
+</ParamField>
+
+<ParamField query="userId" type="string">
+  Filter by user
+</ParamField>
+
+<ParamField query="clientId" type="string">
+  Filter by client
+</ParamField>
+
+<ParamField query="categoryId" type="string">
+  Filter by category
+</ParamField>
+
+<ParamField query="isOvertime" type="boolean">
+  Filter overtime entries only
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Filter entries from this date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Filter entries until this date (YYYY-MM-DD)
+</ParamField>
+
+### Update Time Entry
+
+```bash Request
+PATCH /api/time-entries/{entryId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "hours": 9.0,
+  "endTime": "18:00",
+  "description": "Updated: Also added password reset functionality"
+}
+```
+
+### Delete Time Entry
+
+```bash Request
+DELETE /api/time-entries/{entryId}
+Authorization: Bearer {token}
+```
+
+---
+
+## Time Entry Categories
+
+Categories help classify different types of work:
+
+### Create Category
+
+```javascript Service Example
+await prisma.timeEntryCategory.create({
+  data: {
+    companyId: "company-789",
+    name: "Training",
+    color: "#8B5CF6",
+    isDefault: false,
+    isActive: true,
+    createdBy: userId
+  }
+});
+```
+
+### Common Categories
+
+<CardGroup cols={3}>
+  <Card title="Development" icon="code" color="#10B981">
+    Regular development work
+  </Card>
+  <Card title="Meeting" icon="users" color="#3B82F6">
+    Internal and client meetings
+  </Card>
+  <Card title="Training" icon="graduation-cap" color="#8B5CF6">
+    Learning and skill development
+  </Card>
+  <Card title="Travel" icon="plane" color="#F59E0B">
+    Business travel time
+  </Card>
+  <Card title="Support" icon="headset" color="#EF4444">
+    Customer support activities
+  </Card>
+  <Card title="Admin" icon="folder" color="#6B7280">
+    Administrative tasks
+  </Card>
+</CardGroup>
+
+### Category Schema
+
+```prisma Schema Reference
+model TimeEntryCategory {
+  id          String   @id @default(uuid())
+  companyId   String   @db.Uuid
+  name        String   @db.VarChar(100)
+  color       String?  @db.VarChar(7) @default("#6366F1")
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  
+  company     Company     @relation(fields: [companyId], references: [id])
+  timeEntries TimeEntry[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  @db.Uuid
+  
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+}
+```
+
+---
+
+## Client Billing
+
+### Clients
+
+Track time for different clients:
+
+```javascript Create Client
+await prisma.client.create({
+  data: {
+    companyId: "company-789",
+    name: "Acme Corporation",
+    taxId: "12-3456789",
+    email: "billing@acme.com",
+    phone: "+1234567890",
+    address: "123 Main St, San Francisco, CA 94105",
+    isActive: true,
+    isDefault: false,
+    createdBy: userId
+  }
+});
+```
+
+### Client Sites
+
+Track work at different client locations:
+
+```javascript Create Client Site
+await prisma.clientSite.create({
+  data: {
+    clientId: "client-acme",
+    name: "Headquarters",
+    address: "123 Main St",
+    city: "San Francisco",
+    isActive: true,
+    isDefault: true
+  }
+});
+```
+
+### Client Rate Rules
+
+Define billing rates and overtime rules per client:
+
+```javascript Create Rate Rule
+await prisma.clientRateRule.create({
+  data: {
+    clientId: "client-acme",
+    name: "Standard Contract 2026",
+    baseRatePerHour: 150.00,
+    overtimeRatePerHour: 225.00,
+    currency: "USD",
+    overtimeTriggers: ["WEEKEND", "AFTER_HOURS"],
+    workdayStartTime: "09:00",
+    workdayEndTime: "17:00",
+    workdays: [1, 2, 3, 4, 5], // Mon-Fri
+    isActive: true,
+    effectiveFrom: new Date("2026-01-01"),
+    effectiveTo: new Date("2026-12-31"),
+    createdBy: userId
+  }
+});
+```
+
+### Client Rate Resources
+
+Different rates for different roles/resources:
+
+```javascript Create Rate Resource
+await prisma.clientRateRuleResource.create({
+  data: {
+    rateRuleId: "rate-rule-123",
+    name: "Senior Developer",
+    baseRatePerHour: 175.00,
+    isActive: true
+  }
+});
+```
+
+### Overtime Triggers
+
+<ParamField path="overtimeTriggers" type="enum[]">
+  - `WEEKEND` - Work on Saturday (6) or Sunday (0)
+  - `AFTER_HOURS` - Work outside `workdayStartTime` and `workdayEndTime`
+  - `MANUAL` - Manually marked as overtime
+</ParamField>
+
+### Time Entry with Client Billing
+
+```bash Request
+POST /api/time-entries
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "companyId": "company-789",
+  "date": "2026-03-08",
+  "hours": 6.0,
+  "startTime": "10:00",
+  "endTime": "16:00",
+  "title": "Weekend deployment",
+  "description": "Emergency production deployment",
+  "isOvertime": true,
+  "clientId": "client-acme",
+  "clientSiteId": "site-headquarters",
+  "appliedRatePerHour": 225.00
+}
+```
+
+<Info>
+The `appliedRatePerHour` can be automatically calculated based on client rate rules, or manually set for specific entries.
+</Info>
+
+---
+
+## Time Summaries
+
+### Get Time Summary
+
+Calculate totals for a date range:
+
+```bash Request
+GET /api/time-entries/summary?companyId={companyId}&startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "totalHours": 168.5,
+    "regularHours": 152.0,
+    "overtimeHours": 16.5,
+    "totalEntries": 21,
+    "breakdown": {
+      "byProject": [
+        {
+          "projectId": "proj-123",
+          "projectName": "Website Redesign",
+          "hours": 85.5
+        },
+        {
+          "projectId": "proj-456",
+          "projectName": "Mobile App Development",
+          "hours": 83.0
+        }
+      ],
+      "byCategory": [
+        {
+          "categoryId": "cat-development",
+          "categoryName": "Development",
+          "hours": 140.0
+        },
+        {
+          "categoryId": "cat-meeting",
+          "categoryName": "Meeting",
+          "hours": 28.5
+        }
+      ],
+      "byClient": [
+        {
+          "clientId": "client-acme",
+          "clientName": "Acme Corporation",
+          "hours": 120.0,
+          "estimatedRevenue": 18750.00
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## Best Practices
+
+### Time Entry Validation
+
+<Check>
+**Recommended Validations:**
+- Hours must be between 0.01 and 24
+- Date cannot be in the future
+- `startTime` must be before `endTime`
+- Title is required (1-200 characters)
+- `projectId` must belong to the same company
+</Check>
+
+### Time Format
+
+Use 24-hour format for start/end times:
+
+```javascript Examples
+"09:00"  // 9:00 AM
+"13:30"  // 1:30 PM
+"17:45"  // 5:45 PM
+"23:59"  // 11:59 PM
+```
+
+Validation regex: `^([0-1][0-9]|2[0-3]):[0-5][0-9]$`
+
+### Hours Calculation
+
+Calculate hours from start/end times:
+
+```javascript Helper Function
+function calculateHours(startTime: string, endTime: string): number {
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+  
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+  
+  const diffMinutes = endMinutes - startMinutes;
+  return Number((diffMinutes / 60).toFixed(2));
+}
+
+const hours = calculateHours("09:00", "17:30"); // 8.5
+```
+
+### Project Organization
+
+<Steps>
+  <Step title="Create Projects for Major Initiatives">
+    Website redesign, mobile app, infrastructure upgrade
+  </Step>
+  <Step title="Use Colors for Visual Organization">
+    Client work, internal projects, R&D, maintenance
+  </Step>
+  <Step title="Archive Completed Projects">
+    Set `isActive: false` instead of deleting
+  </Step>
+  <Step title="Review Project List Regularly">
+    Keep the active project list manageable (< 20 active projects)
+  </Step>
+</Steps>
+
+### Category Strategy
+
+```javascript Recommended Categories
+const categories = [
+  { name: 'Development', color: '#10B981', isDefault: true },
+  { name: 'Code Review', color: '#3B82F6', isDefault: false },
+  { name: 'Testing', color: '#8B5CF6', isDefault: false },
+  { name: 'Documentation', color: '#6366F1', isDefault: false },
+  { name: 'Meeting', color: '#F59E0B', isDefault: false },
+  { name: 'Training', color: '#EF4444', isDefault: false },
+  { name: 'Support', color: '#EC4899', isDefault: false },
+  { name: 'Admin', color: '#6B7280', isDefault: false }
+];
+```
+
+### Overtime Management
+
+<Warning>
+**Automatic Overtime Detection:**
+Implement business logic to automatically detect overtime based on:
+- Weekend work (workdays array)
+- After-hours work (workdayStartTime/workdayEndTime)
+- Daily/weekly hour thresholds
+- Client-specific rules
+</Warning>
+
+```javascript Overtime Detection Example
+function isOvertime(
+  date: Date,
+  startTime: string,
+  endTime: string,
+  rateRule: ClientRateRule
+): boolean {
+  // Check weekend
+  const dayOfWeek = date.getDay();
+  if (rateRule.overtimeTriggers.includes('WEEKEND')) {
+    if (!rateRule.workdays.includes(dayOfWeek)) {
+      return true;
+    }
+  }
+  
+  // Check after hours
+  if (rateRule.overtimeTriggers.includes('AFTER_HOURS')) {
+    if (startTime < rateRule.workdayStartTime || 
+        endTime > rateRule.workdayEndTime) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+```
+
+### Client Billing Setup
+
+<Steps>
+  <Step title="Create Client Record">
+    Basic information, contact details, default status
+  </Step>
+  <Step title="Add Client Sites">
+    If working at multiple client locations
+  </Step>
+  <Step title="Define Rate Rules">
+    Base rates, overtime rates, effective dates
+  </Step>
+  <Step title="Add Rate Resources">
+    Different rates for different roles (optional)
+  </Step>
+  <Step title="Log Time with Client">
+    Link time entries to client and site
+  </Step>
+  <Step title="Generate Invoices">
+    Use time entries and rates to calculate billing
+  </Step>
+</Steps>
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Company Setup" icon="building" href="/guides/company-setup">
+    Create companies for time tracking
+  </Card>
+  <Card title="User Management" icon="users" href="/guides/user-management">
+    Manage team members logging time
+  </Card>
+  <Card title="Permissions" icon="shield" href="/guides/permissions">
+    Control access to time tracking
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/time-tracker/entries">
+    View complete API documentation
+  </Card>
+</CardGroup>

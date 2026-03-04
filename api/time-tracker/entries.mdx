@@ -1,0 +1,567 @@
+---
+title: 'Time Entries'
+description: 'Manage time entry records with automatic overtime calculation and rate application'
+---
+
+## Overview
+
+Time entries track work hours for users within a company. Each entry can be linked to projects, clients, client sites, and categories. The API automatically calculates overtime and applies appropriate rates based on client rate rules.
+
+### Key Features
+
+- **Automatic Overtime Detection**: Entries are automatically marked as overtime based on client rate rules (weekends, after-hours, or manual)
+- **Rate Application**: Hourly rates are automatically applied from active client rate rules
+- **Manager Logging**: Owners and admins can log hours on behalf of team members
+- **Flexible Filtering**: List entries by company, project, user, client, category, date range, and overtime status
+- **Real-time Notifications**: Company owners and platform admins receive SSE notifications on entry changes
+
+## Authentication
+
+All endpoints require:
+- Valid JWT authentication token
+- Platform admin role (checked via middleware)
+
+---
+
+## Create Time Entry
+
+<RequestExample>
+```bash Create Time Entry
+curl -X POST https://api.example.com/time-entries \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "projectId": "660e8400-e29b-41d4-a716-446655440000",
+    "date": "2026-03-04",
+    "hours": 8.5,
+    "startTime": "09:00",
+    "endTime": "17:30",
+    "title": "Feature development",
+    "description": "Implemented user authentication module",
+    "clientId": "770e8400-e29b-41d4-a716-446655440000",
+    "categoryId": "880e8400-e29b-41d4-a716-446655440000"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "990e8400-e29b-41d4-a716-446655440000",
+    "userId": "440e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "projectId": "660e8400-e29b-41d4-a716-446655440000",
+    "date": "2026-03-04T00:00:00.000Z",
+    "hours": "8.50",
+    "startTime": "09:00",
+    "endTime": "17:30",
+    "title": "Feature development",
+    "description": "Implemented user authentication module",
+    "isOvertime": false,
+    "appliedRatePerHour": "75.00",
+    "clientId": "770e8400-e29b-41d4-a716-446655440000",
+    "clientSiteId": null,
+    "categoryId": "880e8400-e29b-41d4-a716-446655440000",
+    "loggedByUserId": null,
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z",
+    "user": {
+      "id": "440e8400-e29b-41d4-a716-446655440000",
+      "fullName": "John Doe",
+      "email": "john@example.com",
+      "avatar": "https://example.com/avatars/john.jpg"
+    },
+    "project": {
+      "id": "660e8400-e29b-41d4-a716-446655440000",
+      "name": "Platform API",
+      "color": "#10B981",
+      "isActive": true
+    },
+    "company": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Acme Corp",
+      "slug": "acme-corp"
+    },
+    "client": {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "name": "Big Client Inc"
+    },
+    "clientSite": null,
+    "category": {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "name": "Development",
+      "color": "#6366F1"
+    },
+    "loggedByUser": null
+  }
+}
+```
+</ResponseExample>
+
+### Request Body
+
+<ParamField body="companyId" type="string" required>
+  UUID of the company
+</ParamField>
+
+<ParamField body="projectId" type="string">
+  UUID of the project (optional)
+</ParamField>
+
+<ParamField body="date" type="string | Date" required>
+  Date of the time entry (ISO 8601 format)
+</ParamField>
+
+<ParamField body="hours" type="number" required>
+  Number of hours worked (minimum 0.01)
+</ParamField>
+
+<ParamField body="startTime" type="string">
+  Start time in HH:mm format (e.g., "09:00")
+</ParamField>
+
+<ParamField body="endTime" type="string">
+  End time in HH:mm format (e.g., "17:30")
+</ParamField>
+
+<ParamField body="title" type="string" required>
+  Entry title (1-200 characters)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Detailed description (max 2000 characters)
+</ParamField>
+
+<ParamField body="isOvertime" type="boolean" default="false">
+  Manually mark as overtime (only used if client has MANUAL trigger)
+</ParamField>
+
+<ParamField body="clientId" type="string">
+  UUID of the client (enables automatic overtime calculation)
+</ParamField>
+
+<ParamField body="clientSiteId" type="string">
+  UUID of the client site
+</ParamField>
+
+<ParamField body="categoryId" type="string">
+  UUID of the time entry category
+</ParamField>
+
+<ParamField body="targetUserId" type="string">
+  UUID of the user to log hours for (owner/admin only). If not provided, logs for authenticated user.
+</ParamField>
+
+### Response Fields
+
+All request fields plus:
+
+- `id`: Generated UUID
+- `userId`: Owner of the time entry
+- `isOvertime`: Calculated based on client rate rules
+- `appliedRatePerHour`: Rate applied from client rate rule (if applicable)
+- `loggedByUserId`: Set when an owner/admin logs for another user
+- `createdAt`, `updatedAt`: Timestamps
+- Related objects: `user`, `project`, `company`, `client`, `clientSite`, `category`, `loggedByUser`
+
+---
+
+## List Time Entries
+
+<RequestExample>
+```bash List Time Entries
+curl -X GET "https://api.example.com/time-entries?companyId=550e8400-e29b-41d4-a716-446655440000&page=1&limit=50&startDate=2026-03-01&endDate=2026-03-31&isOvertime=false" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440000",
+      "userId": "440e8400-e29b-41d4-a716-446655440000",
+      "date": "2026-03-04T00:00:00.000Z",
+      "hours": "8.50",
+      "title": "Feature development",
+      "isOvertime": false,
+      "appliedRatePerHour": "75.00",
+      "user": {
+        "fullName": "John Doe",
+        "email": "john@example.com"
+      },
+      "project": {
+        "name": "Platform API",
+        "color": "#10B981"
+      },
+      "client": {
+        "name": "Big Client Inc"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 125,
+    "totalPages": 3
+  }
+}
+```
+</ResponseExample>
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number (min: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="50">
+  Items per page (1-500)
+</ParamField>
+
+<ParamField query="companyId" type="string">
+  Filter by company UUID
+</ParamField>
+
+<ParamField query="projectId" type="string">
+  Filter by project UUID
+</ParamField>
+
+<ParamField query="userId" type="string">
+  Filter by user UUID (owner/admin only for other users)
+</ParamField>
+
+<ParamField query="clientId" type="string">
+  Filter by client UUID
+</ParamField>
+
+<ParamField query="categoryId" type="string">
+  Filter by category UUID
+</ParamField>
+
+<ParamField query="isOvertime" type="boolean">
+  Filter by overtime status
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Start date for date range filter (ISO 8601)
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  End date for date range filter (ISO 8601)
+</ParamField>
+
+### Access Control
+
+- **Platform Admins**: Can view all entries across all companies
+- **Company Owners/Admins**: Can view all entries in their company
+- **Regular Members**: Can only view their own entries
+
+---
+
+## Get Time Entry by ID
+
+<RequestExample>
+```bash Get Time Entry
+curl -X GET https://api.example.com/time-entries/990e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "990e8400-e29b-41d4-a716-446655440000",
+    "userId": "440e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "date": "2026-03-04T00:00:00.000Z",
+    "hours": "8.50",
+    "startTime": "09:00",
+    "endTime": "17:30",
+    "title": "Feature development",
+    "description": "Implemented user authentication module",
+    "isOvertime": false,
+    "appliedRatePerHour": "75.00",
+    "user": {
+      "id": "440e8400-e29b-41d4-a716-446655440000",
+      "fullName": "John Doe",
+      "email": "john@example.com",
+      "avatar": "https://example.com/avatars/john.jpg"
+    },
+    "project": {
+      "id": "660e8400-e29b-41d4-a716-446655440000",
+      "name": "Platform API"
+    },
+    "client": {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "name": "Big Client Inc"
+    },
+    "category": {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "name": "Development",
+      "color": "#6366F1"
+    }
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the time entry
+</ParamField>
+
+---
+
+## Update Time Entry
+
+<RequestExample>
+```bash Update Time Entry
+curl -X PATCH https://api.example.com/time-entries/990e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hours": 9.0,
+    "endTime": "18:00",
+    "description": "Implemented user authentication module and tests"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "990e8400-e29b-41d4-a716-446655440000",
+    "hours": "9.00",
+    "endTime": "18:00",
+    "description": "Implemented user authentication module and tests",
+    "updatedAt": "2026-03-04T16:00:00.000Z"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the time entry
+</ParamField>
+
+### Request Body
+
+All fields from creation are optional. When `clientId`, `date`, `startTime`, `endTime`, or `isOvertime` are updated, overtime status and rate are automatically recalculated.
+
+<ParamField body="projectId" type="string">
+  Update project assignment
+</ParamField>
+
+<ParamField body="date" type="string | Date">
+  Update date (triggers overtime recalculation)
+</ParamField>
+
+<ParamField body="hours" type="number">
+  Update hours worked
+</ParamField>
+
+<ParamField body="startTime" type="string">
+  Update start time (triggers overtime recalculation)
+</ParamField>
+
+<ParamField body="endTime" type="string">
+  Update end time (triggers overtime recalculation)
+</ParamField>
+
+<ParamField body="title" type="string">
+  Update title
+</ParamField>
+
+<ParamField body="description" type="string">
+  Update description
+</ParamField>
+
+<ParamField body="isOvertime" type="boolean">
+  Update overtime status (triggers rate recalculation)
+</ParamField>
+
+<ParamField body="clientId" type="string">
+  Update client (triggers overtime recalculation)
+</ParamField>
+
+<ParamField body="clientSiteId" type="string">
+  Update client site
+</ParamField>
+
+<ParamField body="categoryId" type="string">
+  Update category
+</ParamField>
+
+### Access Control
+
+- Users can update their own entries
+- Company owners/admins can update any entry in their company
+- Platform admins can update any entry
+
+---
+
+## Delete Time Entry
+
+<RequestExample>
+```bash Delete Time Entry
+curl -X DELETE https://api.example.com/time-entries/990e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "message": "Time entry deleted successfully"
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the time entry to delete
+</ParamField>
+
+### Access Control
+
+Same as update: users can delete their own entries, company owners/admins can delete any entry in their company.
+
+---
+
+## Get Time Summary
+
+<RequestExample>
+```bash Get Summary
+curl -X GET "https://api.example.com/time-entries/summary?companyId=550e8400-e29b-41d4-a716-446655440000&startDate=2026-03-01&endDate=2026-03-31" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "totalHours": 168.5,
+    "totalEntries": 23,
+    "startDate": "2026-03-01T00:00:00.000Z",
+    "endDate": "2026-03-31T00:00:00.000Z",
+    "byProject": [
+      {
+        "projectId": "660e8400-e29b-41d4-a716-446655440000",
+        "projectName": "Platform API",
+        "hours": 120.5,
+        "entries": 17
+      },
+      {
+        "projectId": null,
+        "projectName": "No Project",
+        "hours": 48.0,
+        "entries": 6
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+### Query Parameters
+
+<ParamField query="companyId" type="string" required>
+  Company UUID to get summary for
+</ParamField>
+
+<ParamField query="startDate" type="string" required>
+  Start date (ISO 8601 format)
+</ParamField>
+
+<ParamField query="endDate" type="string" required>
+  End date (ISO 8601 format)
+</ParamField>
+
+### Response Fields
+
+- `totalHours`: Sum of all hours in the date range
+- `totalEntries`: Count of time entries
+- `startDate`, `endDate`: Date range queried
+- `byProject`: Array of project summaries with hours and entry counts
+
+---
+
+## Overtime Calculation
+
+When a time entry is linked to a client with active rate rules, overtime is automatically calculated based on the rule's triggers:
+
+### Trigger Types
+
+**WEEKEND**
+- Automatically marks entries on Saturday (6) or Sunday (0) as overtime
+- Uses `date.getDay()` to determine day of week
+
+**AFTER_HOURS**
+- Requires `startTime`, `endTime`, `workdayStartTime`, and `workdayEndTime` on the rate rule
+- Marks as overtime if work starts before `workdayStartTime` or ends after `workdayEndTime`
+- Example: Work starts at 07:00 when workday starts at 09:00
+
+**MANUAL**
+- Allows user to manually set `isOvertime: true` in the request
+- Gives control to the user or manager logging the entry
+
+### Rate Application
+
+When overtime is detected:
+- `appliedRatePerHour` is set to `overtimeRatePerHour` from the rate rule
+
+When not overtime:
+- `appliedRatePerHour` is set to `baseRatePerHour` from the rate rule (if defined)
+- Can be `null` if no base rate is configured
+
+### Rule Selection
+
+The system selects the most recent active rate rule where:
+- `clientId` matches
+- `isActive` is `true`
+- `effectiveFrom <= entry.date`
+- `effectiveTo` is `null` OR `effectiveTo >= entry.date`
+
+---
+
+## Real-time Notifications
+
+Time entry changes trigger SSE events sent to:
+- All company owners (users with "Owner" role)
+- All platform admins
+
+### Event Format
+
+```json
+{
+  "event": "time-entry:change",
+  "data": {
+    "action": "created",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Acme Corp",
+    "userName": "John Doe",
+    "hours": 8.5,
+    "projectName": "Platform API",
+    "date": "2026-03-04T00:00:00.000Z"
+  }
+}
+```
+
+Actions: `created`, `updated`, `deleted`

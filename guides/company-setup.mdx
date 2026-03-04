@@ -1,0 +1,562 @@
+---
+title: Company Setup
+description: Learn how to create and manage companies via invites or requests, configure company settings, and manage company status
+---
+
+## Overview
+
+The Platform API provides two primary methods for creating companies:
+
+1. **Company Invites** - Platform admins issue invites to specific users
+2. **Company Requests** - Users submit requests that require admin approval
+
+Once created, companies can be configured with custom settings, status management, and soft deletion.
+
+---
+
+## Creating Companies via Invite
+
+### Step 1: Admin Issues Company Invite
+
+Platform administrators can issue company creation invites to specific email addresses:
+
+```bash Request
+POST /api/admin/company-invites
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "email": "founder@acme.com",
+  "expiresInHours": 72
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "email": "founder@acme.com",
+    "token": "a3f2b...c8d9e",
+    "status": "PENDING",
+    "expiresAt": "2026-03-07T12:00:00Z"
+  }
+}
+```
+
+<Note>
+The `token` is only returned once during creation. Send this to the user via secure communication.
+</Note>
+
+### Step 2: User Creates Company with Invite
+
+Users redeem the invite token to create their company:
+
+```bash Request
+POST /api/companies
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Acme Corporation",
+  "slug": "acme-corp",
+  "description": "Leading innovation in technology",
+  "logo": "https://example.com/logo.png",
+  "inviteMembers": [
+    {
+      "email": "member@acme.com",
+      "inviteMessage": "Welcome to the team!"
+    }
+  ]
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "456e7890-e89b-12d3-a456-426614174001",
+    "name": "Acme Corporation",
+    "slug": "acme-corp",
+    "status": "ACTIVE",
+    "defaultRoles": {
+      "owner": {
+        "id": "role-owner-id",
+        "name": "Owner",
+        "color": "#EF4444"
+      },
+      "admin": {
+        "id": "role-admin-id",
+        "name": "Admin",
+        "color": "#F59E0B"
+      },
+      "manager": {
+        "id": "role-manager-id",
+        "name": "Manager",
+        "color": "#3B82F6"
+      },
+      "member": {
+        "id": "role-member-id",
+        "name": "Member",
+        "color": "#6B7280"
+      }
+    },
+    "invitesSent": 1
+  }
+}
+```
+
+<Info>
+**Automatic Setup:** When creating a company, the system automatically:
+- Creates 4 default roles: Owner, Admin, Manager, and Member
+- Assigns the creator as an Owner with ACTIVE status
+- Sends invites to additional members if provided
+- Links the invite to the created company
+</Info>
+
+---
+
+## Creating Companies via Request
+
+### Step 1: User Submits Company Request
+
+Users can request to create a company without an admin invite:
+
+```bash Request
+POST /api/company-requests
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "companyName": "Acme Corporation",
+  "companySlug": "acme-corp",
+  "description": "Leading innovation in technology",
+  "reason": "Need a workspace for my startup team"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "789e0123-e89b-12d3-a456-426614174002",
+    "userId": "user-id",
+    "companyName": "Acme Corporation",
+    "companySlug": "acme-corp",
+    "status": "PENDING",
+    "createdAt": "2026-03-04T18:41:00Z"
+  },
+  "message": "Company request submitted successfully. An admin will review it soon."
+}
+```
+
+### Step 2: User Monitors Request Status
+
+```bash Request
+GET /api/company-requests
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "789e0123-e89b-12d3-a456-426614174002",
+      "companyName": "Acme Corporation",
+      "companySlug": "acme-corp",
+      "status": "PENDING",
+      "createdAt": "2026-03-04T18:41:00Z"
+    }
+  ]
+}
+```
+
+### Step 3: Admin Reviews Request
+
+Platform admins can approve or reject requests:
+
+```bash Request
+POST /api/admin/company-requests/{requestId}/review
+Authorization: Bearer {admin-token}
+Content-Type: application/json
+
+{
+  "action": "approve",
+  "reviewNotes": "Approved for pilot program"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "789e0123-e89b-12d3-a456-426614174002",
+    "status": "APPROVED",
+    "reviewedAt": "2026-03-04T19:00:00Z",
+    "reviewNotes": "Approved for pilot program"
+  },
+  "message": "Company request approved. User can now create their company."
+}
+```
+
+### Step 4: User Creates Company After Approval
+
+Once approved, the user can create their company using the standard endpoint:
+
+```bash Request
+POST /api/companies
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Acme Corporation",
+  "slug": "acme-corp"
+}
+```
+
+<Note>
+The system automatically links the created company to the approved request and marks it as `COMPLETED`.
+</Note>
+
+---
+
+## Configuring Company Settings
+
+### Update Company Details
+
+```bash Request
+PATCH /api/companies/{companyId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Acme Corp International",
+  "description": "Expanding globally",
+  "logo": "https://example.com/new-logo.png",
+  "metadata": {
+    "industry": "Technology",
+    "size": "50-100",
+    "website": "https://acme-corp.com"
+  }
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "456e7890-e89b-12d3-a456-426614174001",
+    "name": "Acme Corp International",
+    "slug": "acme-corp",
+    "description": "Expanding globally",
+    "logo": "https://example.com/new-logo.png",
+    "metadata": {
+      "industry": "Technology",
+      "size": "50-100",
+      "website": "https://acme-corp.com"
+    },
+    "status": "ACTIVE",
+    "updatedAt": "2026-03-04T20:00:00Z"
+  }
+}
+```
+
+### Get Company by ID
+
+```bash Request
+GET /api/companies/{companyId}
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "456e7890-e89b-12d3-a456-426614174001",
+    "name": "Acme Corp International",
+    "slug": "acme-corp",
+    "description": "Expanding globally",
+    "logo": "https://example.com/new-logo.png",
+    "metadata": {
+      "industry": "Technology"
+    },
+    "status": "ACTIVE",
+    "_count": {
+      "memberships": 12,
+      "roles": 4
+    },
+    "createdAt": "2026-03-01T10:00:00Z",
+    "updatedAt": "2026-03-04T20:00:00Z"
+  }
+}
+```
+
+### Get Company by Slug
+
+```bash Request
+GET /api/companies/slug/{slug}
+Authorization: Bearer {token}
+```
+
+<Tip>
+Use the slug endpoint for user-friendly URLs like `/company/acme-corp`.
+</Tip>
+
+---
+
+## Managing Company Status
+
+### Company Status Values
+
+Companies can have two status values:
+
+<ParamField path="status" type="enum">
+  - `ACTIVE` - Company is operational and accessible
+  - `SUSPENDED` - Company access is restricted
+</ParamField>
+
+### Suspend a Company
+
+```bash Request
+PATCH /api/companies/{companyId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "status": "SUSPENDED"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "456e7890-e89b-12d3-a456-426614174001",
+    "name": "Acme Corporation",
+    "status": "SUSPENDED",
+    "updatedAt": "2026-03-04T21:00:00Z"
+  }
+}
+```
+
+<Warning>
+Suspending a company may restrict member access depending on your application logic.
+</Warning>
+
+### Reactivate a Company
+
+```bash Request
+PATCH /api/companies/{companyId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "status": "ACTIVE"
+}
+```
+
+---
+
+## Soft Delete and Restore
+
+### Soft Delete Company
+
+Companies support soft deletion, preserving data for potential recovery:
+
+```bash Request
+DELETE /api/companies/{companyId}
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "message": "Company deleted successfully"
+}
+```
+
+<Info>
+Soft deleting a company:
+- Sets `deletedAt` timestamp
+- Changes status to `SUSPENDED`
+- Preserves all data (members, roles, projects, time entries)
+- Excludes from default queries
+</Info>
+
+### Restore Deleted Company
+
+```bash Request
+POST /api/companies/{companyId}/restore
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "456e7890-e89b-12d3-a456-426614174001",
+    "name": "Acme Corporation",
+    "status": "ACTIVE",
+    "deletedAt": null,
+    "updatedAt": "2026-03-04T22:00:00Z"
+  }
+}
+```
+
+---
+
+## Listing Companies
+
+### List User's Companies
+
+```bash Request
+GET /api/companies?page=1&limit=20&status=ACTIVE
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "456e7890-e89b-12d3-a456-426614174001",
+      "name": "Acme Corporation",
+      "slug": "acme-corp",
+      "logo": "https://example.com/logo.png",
+      "description": "Leading innovation",
+      "status": "ACTIVE",
+      "_count": {
+        "memberships": 12
+      },
+      "createdAt": "2026-03-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="20">
+  Number of results per page (max: 100)
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search companies by name or slug
+</ParamField>
+
+<ParamField query="status" type="enum">
+  Filter by status: `ACTIVE` or `SUSPENDED`
+</ParamField>
+
+<ParamField query="includeDeleted" type="boolean" default="false">
+  Include soft-deleted companies in results
+</ParamField>
+
+---
+
+## Best Practices
+
+### Slug Generation
+
+<Check>
+**Slug Requirements:**
+- 2-80 characters
+- Lowercase letters, numbers, and hyphens only
+- Must be unique across all companies
+- Cannot be changed after creation (in most cases)
+</Check>
+
+```javascript Example
+function generateSlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+const slug = generateSlug("Acme Corporation"); // "acme-corporation"
+```
+
+### Access Control
+
+<Note>
+**Permission Requirements:**
+- **Creating companies** requires `COMPANY:CREATE` global permission or platform admin status
+- **Viewing companies** limited to active memberships (non-admins)
+- **Updating/deleting** requires appropriate company-level permissions
+- **Platform admins** can view and manage all companies
+</Note>
+
+### Company Metadata
+
+Use the `metadata` field for custom attributes:
+
+```json Example
+{
+  "metadata": {
+    "industry": "Technology",
+    "employees": "50-100",
+    "founded": "2020",
+    "website": "https://acme.com",
+    "timezone": "America/New_York",
+    "currency": "USD"
+  }
+}
+```
+
+### Inviting Members During Creation
+
+Invite team members when creating a company:
+
+```json Example
+{
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "inviteMembers": [
+    {
+      "email": "admin@acme.com",
+      "roleId": "admin-role-id",
+      "inviteMessage": "Join as admin"
+    },
+    {
+      "email": "member@acme.com",
+      "inviteMessage": "Welcome to the team!"
+    }
+  ]
+}
+```
+
+<Info>
+If `roleId` is not specified, the default company role (Member) is assigned automatically.
+</Info>
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="User Management" icon="users" href="/guides/user-management">
+    Manage members and invitations
+  </Card>
+  <Card title="Permissions" icon="shield" href="/guides/permissions">
+    Configure roles and permissions
+  </Card>
+  <Card title="Time Tracking" icon="clock" href="/guides/time-tracking">
+    Set up projects and time entries
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/companies/create">
+    View complete API documentation
+  </Card>
+</CardGroup>

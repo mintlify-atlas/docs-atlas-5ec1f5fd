@@ -1,0 +1,518 @@
+---
+title: 'Invitation System'
+description: 'Learn how company creation invites and member invitations work in the Platform API'
+icon: 'envelope'
+---
+
+## Overview
+
+The Platform API provides two types of invitations:
+
+1. **Company Invites** - Platform admin invites users to create new companies
+2. **Member Invites** - Company members invite users to join existing companies
+
+Both use secure token-based flows with expiration and status tracking.
+
+## Company Invites
+
+### Purpose
+
+Company invites allow **platform administrators** to invite specific users to create new companies. This is one of three ways to create a company:
+
+<CardGroup cols={3}>
+  <Card title="Admin Invite" icon="envelope">
+    Admin creates invite → User accepts → User creates company
+  </Card>
+  
+  <Card title="User Request" icon="hand-paper">
+    User requests → Admin approves → User creates company
+  </Card>
+  
+  <Card title="Direct Creation" icon="bolt">
+    User with `companies.create` permission creates company directly
+  </Card>
+</CardGroup>
+
+### Company Invite Model
+
+```typescript CompanyInvite Structure
+{
+  id: "uuid",
+  email: "john@example.com",
+  tokenHash: "bcrypt-hashed-token",
+  status: "PENDING" | "USED" | "EXPIRED" | "REVOKED",
+  
+  issuedByAdminId: "admin-uuid",
+  usedByUserId: "user-uuid" | null,
+  createdCompanyId: "company-uuid" | null,
+  
+  expiresAt: "2024-01-15T00:00:00Z",
+  usedAt: "2024-01-10T12:30:00Z" | null,
+  revokedAt: null,
+  
+  createdAt: "2024-01-01T00:00:00Z",
+  updatedAt: "2024-01-10T12:30:00Z"
+}
+```
+
+**Key Relationships:**
+
+- `issuedByAdmin`: Platform admin who created the invite
+- `usedByUser`: User who accepted the invite (set when used)
+- `createdCompany`: Company created from this invite (1:1 relationship)
+
+See [schema.prisma:339-367](/workspace/source/prisma/schema.prisma)
+
+### Company Invite Flow
+
+<Steps>
+  <Step title="Admin Creates Invite">
+    Platform admin generates an invite for a specific email:
+    
+    ```typescript
+    POST /api/admin/company-invites
+    {
+      "email": "john@example.com"
+    }
+    ```
+    
+    The system:
+    - Generates a secure 32-byte random token
+    - Hashes the token with bcrypt (only hash is stored)
+    - Sets expiration date (configurable, typically 7-14 days)
+    - Returns the plain token to send to the user
+  </Step>
+  
+  <Step title="User Receives Email">
+    The plain token is sent to the user's email with a registration link:
+    
+    ```
+    https://app.example.com/register?invite=abc123def456...
+    ```
+  </Step>
+  
+  <Step title="User Registers">
+    User creates an account, providing the invite token:
+    
+    ```typescript
+    POST /api/auth/register
+    {
+      "email": "john@example.com",
+      "fullName": "John Doe",
+      "password": "secure-password",
+      "inviteToken": "abc123def456..."
+    }
+    ```
+    
+    The system validates:
+    - Token hash matches
+    - Email matches invite email
+    - Invite status is `PENDING`
+    - Expiration date hasn't passed
+  </Step>
+  
+  <Step title="User Creates Company">
+    After registration, the user creates their company:
+    
+    ```typescript
+    POST /api/companies
+    {
+      "name": "Acme Corporation",
+      "slug": "acme-corp",
+      "description": "..."
+    }
+    ```
+    
+    The system:
+    - Creates the company
+    - Updates invite: `status: USED`, `usedAt`, `usedByUserId`, `createdCompanyId`
+    - Creates ACTIVE membership with Owner role for the user
+  </Step>
+</Steps>
+
+### Company Invite Statuses
+
+<Tabs>
+  <Tab title="PENDING">
+    **Initial state** when invite is created.
+    
+    - Invite can be used by the recipient
+    - Token is valid (not expired)
+    - Admin can revoke if needed
+  </Tab>
+  
+  <Tab title="USED">
+    **Final state** when user accepts and creates company.
+    
+    - `usedAt` timestamp is set
+    - `usedByUserId` references the user
+    - `createdCompanyId` references the new company
+    - Cannot be used again (single-use)
+  </Tab>
+  
+  <Tab title="EXPIRED">
+    **Automatic state** when `expiresAt` date passes.
+    
+    - Token is no longer valid
+    - User cannot register with this token
+    - Admin can create a new invite if needed
+  </Tab>
+  
+  <Tab title="REVOKED">
+    **Manual state** when admin cancels the invite.
+    
+    - `revokedAt` timestamp is set
+    - Token is invalidated immediately
+    - User cannot use the invite
+  </Tab>
+</Tabs>
+
+## Member Invites
+
+### Purpose
+
+Member invites allow **authorized company members** to invite users to join their company. This is the primary way to add new members to existing companies.
+
+### Member Invite Model
+
+```typescript CompanyMemberInvite Structure
+{
+  id: "uuid",
+  companyId: "uuid",
+  email: "jane@example.com",
+  tokenHash: "bcrypt-hashed-token",
+  status: "PENDING" | "USED" | "EXPIRED" | "REVOKED",
+  inviteMessage: "Welcome to our team!" | null,
+  
+  issuedByUserId: "user-uuid",
+  usedByUserId: "user-uuid" | null,
+  defaultRoleId: "role-uuid" | null,
+  
+  expiresAt: "2024-01-15T00:00:00Z",
+  usedAt: "2024-01-10T12:30:00Z" | null,
+  revokedAt: null,
+  
+  createdAt: "2024-01-01T00:00:00Z",
+  updatedAt: "2024-01-10T12:30:00Z"
+}
+```
+
+**Key Relationships:**
+
+- `company`: The company the user is being invited to
+- `issuedByUser`: Company member who created the invite (requires permission)
+- `usedByUser`: User who accepted the invite
+- `defaultRole`: Role to assign when invite is accepted (falls back to company default role)
+
+**Unique Constraint:**
+
+```typescript
+@@unique([companyId, email, status], name: "unique_pending_invite")
+```
+
+This prevents multiple pending invites to the same email for the same company.
+
+See [schema.prisma:370-404](/workspace/source/prisma/schema.prisma)
+
+### Member Invite Flow
+
+<Steps>
+  <Step title="Member Creates Invite">
+    An authorized company member invites a user by email:
+    
+    ```typescript
+    POST /api/companies/:companyId/member-invites
+    {
+      "email": "jane@example.com",
+      "defaultRoleId": "member-role-uuid",
+      "inviteMessage": "We'd love to have you join our team!"
+    }
+    ```
+    
+    Validation:
+    - Issuer has permission to invite members
+    - Email is not already a member
+    - No pending invite exists for this email
+    - Default role belongs to this company (if provided)
+  </Step>
+  
+  <Step title="User Receives Notification">
+    The invited user receives an email with a link:
+    
+    ```
+    https://app.example.com/invitations?token=xyz789...
+    ```
+    
+    If the user already has an account, they can also see the invite in their dashboard:
+    
+    ```typescript
+    GET /api/invitations/pending
+    
+    // Response
+    {
+      "invitations": [
+        {
+          "id": "uuid",
+          "company": { "name": "Acme Corp", "slug": "acme-corp" },
+          "roles": [{ "name": "Member", "color": "#6B7280" }],
+          "invitedAt": "2024-01-01T00:00:00Z"
+        }
+      ]
+    }
+    ```
+  </Step>
+  
+  <Step title="User Accepts or Declines">
+    **If accepting:**
+    
+    ```typescript
+    POST /api/invitations/:membershipId/accept
+    ```
+    
+    The system:
+    - Updates membership: `status: ACTIVE`, `activatedAt`
+    - Updates invite: `status: USED`, `usedAt`, `usedByUserId`
+    - User can now access the company
+    
+    **If declining:**
+    
+    ```typescript
+    POST /api/invitations/:membershipId/decline
+    ```
+    
+    The system:
+    - Deletes the membership record
+    - Updates invite: `status: REVOKED`, `revokedAt`
+  </Step>
+</Steps>
+
+See [memberships.service.ts:88-142](/workspace/source/src/modules/memberships/services/memberships.service.ts) and [memberships.service.ts:214-260](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
+### Direct Member Addition
+
+Internally, members can also be added directly without the traditional invite email flow:
+
+```typescript
+POST /api/companies/:companyId/members/invite
+{
+  "userId": "existing-user-uuid",
+  "position": "Senior Developer",
+  "department": "Engineering"
+}
+```
+
+This creates a membership with `status: INVITED` and sends a real-time notification:
+
+```typescript
+// SSE event sent to the user
+{
+  "event": "invitation:new",
+  "data": {
+    "id": "membership-uuid",
+    "company": { "name": "Acme Corp", "slug": "acme-corp" },
+    "roles": [{ "name": "Member", "color": "#6B7280" }],
+    "invitedAt": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+See [memberships.service.ts:125-140](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
+## Invitation Security
+
+### Token Generation
+
+Both invite types use the same secure token pattern:
+
+```typescript
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+
+// 1. Generate cryptographically secure random token
+const plainToken = crypto.randomBytes(32).toString('hex');
+// Result: "a1b2c3d4e5f6..." (64 characters)
+
+// 2. Hash token before storing
+const tokenHash = await bcrypt.hash(plainToken, 10);
+// Result: "$2a$10$..." (bcrypt hash)
+
+// 3. Store only the hash
+await prisma.companyInvite.create({
+  data: {
+    email: 'user@example.com',
+    tokenHash, // Never store plain token
+    // ...
+  }
+});
+
+// 4. Send plain token to user (via email, etc.)
+return plainToken; // This is the only time we have access to it
+```
+
+**Security Benefits:**
+
+- Plain tokens never stored in database
+- Database breach doesn't expose usable tokens
+- Tokens are 256-bit entropy (2^256 possibilities)
+- Bcrypt is slow and resistant to brute-force
+
+See [companies.service.ts:114-115](/workspace/source/src/modules/companies/services/companies.service.ts)
+
+### Token Validation
+
+When a user provides a token, validation follows these steps:
+
+```typescript
+import bcrypt from 'bcryptjs';
+
+const validateInvite = async (plainToken: string, email: string) => {
+  // 1. Find invite by email
+  const invite = await prisma.companyMemberInvite.findFirst({
+    where: { email, status: 'PENDING' }
+  });
+  
+  if (!invite) {
+    throw new Error('Invite not found');
+  }
+  
+  // 2. Check expiration
+  if (new Date() > invite.expiresAt) {
+    throw new Error('Invite has expired');
+  }
+  
+  // 3. Verify token hash
+  const isValid = await bcrypt.compare(plainToken, invite.tokenHash);
+  
+  if (!isValid) {
+    throw new Error('Invalid invite token');
+  }
+  
+  return invite;
+};
+```
+
+### Expiration Policy
+
+Expiration dates are configurable via environment variables:
+
+```bash .env
+# Company invite expiration (days)
+COMPANY_INVITE_EXPIRY_DAYS=14
+
+# Member invite expiration (hours)
+MEMBER_INVITE_EXPIRY_HOURS=168  # 7 days
+```
+
+**Automatic Cleanup:**
+
+Expired invites should be cleaned up periodically via a cron job:
+
+```typescript
+// Update expired invites
+await prisma.companyInvite.updateMany({
+  where: {
+    status: 'PENDING',
+    expiresAt: { lt: new Date() }
+  },
+  data: { status: 'EXPIRED' }
+});
+
+await prisma.companyMemberInvite.updateMany({
+  where: {
+    status: 'PENDING',
+    expiresAt: { lt: new Date() }
+  },
+  data: { status: 'EXPIRED' }
+});
+```
+
+## Real-Time Notifications
+
+When a member invite is created, the system sends a real-time notification via Server-Sent Events (SSE):
+
+```typescript
+import { sseManager } from '@/common/services/sse.manager';
+
+// Send notification to invited user
+sseManager.sendToUser(userId, 'invitation:new', {
+  id: membership.id,
+  company: {
+    id: company.id,
+    name: company.name,
+    slug: company.slug,
+    logo: company.logo
+  },
+  roles: [{ id: role.id, name: role.name, color: role.color }],
+  invitedAt: new Date().toISOString()
+});
+```
+
+The client can listen for these events:
+
+```typescript
+const eventSource = new EventSource('/api/sse');
+
+eventSource.addEventListener('invitation:new', (event) => {
+  const invitation = JSON.parse(event.data);
+  // Show notification to user
+  showNotification(
+    `You've been invited to join ${invitation.company.name}`
+  );
+});
+```
+
+See [memberships.service.ts:124-140](/workspace/source/src/modules/memberships/services/memberships.service.ts)
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Permissions" icon="shield-check">
+    Always verify that the user creating an invite has the appropriate permission (e.g., `members.invite`).
+  </Card>
+  
+  <Card title="Check for Duplicates" icon="copy">
+    Before creating a member invite, verify that the user isn't already a member and doesn't have a pending invite.
+  </Card>
+  
+  <Card title="Set Reasonable Expiration" icon="clock">
+    Balance security (shorter expiration) with user convenience (longer expiration). 7 days is typically appropriate.
+  </Card>
+  
+  <Card title="Provide Clear Messaging" icon="message">
+    Include helpful context in invite emails: who invited them, what company, what role they'll have.
+  </Card>
+</CardGroup>
+
+<CardGroup cols={2}>
+  <Card title="Handle Edge Cases" icon="triangle-exclamation">
+    What happens if a user declines, then is re-invited? Or if an invite expires while the user is registering?
+  </Card>
+  
+  <Card title="Audit Invite Actions" icon="clipboard-list">
+    Log who created, accepted, declined, and revoked invites for security and compliance tracking.
+  </Card>
+  
+  <Card title="Clean Up Expired Invites" icon="broom">
+    Run periodic jobs to update expired invites and optionally delete old invites after 90+ days.
+  </Card>
+  
+  <Card title="Rate Limit Invites" icon="gauge-high">
+    Prevent abuse by limiting how many invites a user can send per day/hour.
+  </Card>
+</CardGroup>
+
+## Related Concepts
+
+<CardGroup cols={2}>
+  <Card title="Multi-Tenancy" icon="building" href="/concepts/multi-tenancy">
+    Learn about company creation and the tenant model
+  </Card>
+  
+  <Card title="Memberships" icon="users" href="/concepts/memberships">
+    Understand how invitations create memberships
+  </Card>
+  
+  <Card title="RBAC" icon="key" href="/concepts/rbac">
+    See how default roles are assigned during invitation
+  </Card>
+</CardGroup>

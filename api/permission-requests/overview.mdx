@@ -1,0 +1,838 @@
+---
+title: 'Permission Requests'
+description: 'Endpoints for requesting and managing global permission requests'
+---
+
+## Overview
+
+The Permission Requests API allows users to:
+- Request global permissions from platform administrators
+- View their own permission requests
+- Update or cancel pending requests
+
+Platform administrators can:
+- Review all permission requests
+- Approve or reject requests
+- Automatically grant permissions upon approval
+
+## Authentication
+
+All endpoints require authentication using a Bearer token in the `Authorization` header. Admin-specific endpoints require platform admin privileges.
+
+---
+
+## Get Available Permissions
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.example.com/api/permission-requests/available-permissions \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves all global permissions that can be requested.
+
+### Endpoint
+
+```
+GET /api/permission-requests/available-permissions
+```
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array" required>
+  Array of available permission objects
+  
+  <Expandable title="Permission Object">
+    <ResponseField name="id" type="string">
+      Permission unique identifier
+    </ResponseField>
+    
+    <ResponseField name="key" type="string">
+      Permission key (e.g., `COMPANY:CREATE`)
+    </ResponseField>
+    
+    <ResponseField name="description" type="string" nullable>
+      Permission description
+    </ResponseField>
+    
+    <ResponseField name="scope" type="string">
+      Permission scope (always `GLOBAL` for requestable permissions)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "key": "USER:MANAGE",
+      "description": "Allows managing user accounts",
+      "scope": "GLOBAL"
+    }
+  ]
+}
+```
+
+---
+
+## Create Permission Request
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/permission-requests \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "GLOBAL_PERMISSION",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "I need this permission to create a new company for our team"
+  }'
+```
+</RequestExample>
+
+Creates a new permission request for review by platform administrators.
+
+### Endpoint
+
+```
+POST /api/permission-requests
+```
+
+### Request Body
+
+<ParamField body="type" type="string" default="GLOBAL_PERMISSION">
+  Request type. Currently supports: `GLOBAL_PERMISSION`, `OTHER`
+</ParamField>
+
+<ParamField body="requestedPermissionId" type="string" optional>
+  UUID of the global permission being requested (required for `GLOBAL_PERMISSION` type)
+</ParamField>
+
+<ParamField body="reason" type="string" optional>
+  Justification for why this permission is needed (max 1000 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The created permission request object
+  
+  <Expandable title="Permission Request Object">
+    <ResponseField name="id" type="string">
+      Request unique identifier
+    </ResponseField>
+    
+    <ResponseField name="userId" type="string">
+      User who created the request
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Request type: `GLOBAL_PERMISSION` or `OTHER`
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Current status: `PENDING`, `APPROVED`, `REJECTED`, or `CANCELLED`
+    </ResponseField>
+    
+    <ResponseField name="requestedPermissionId" type="string" nullable>
+      ID of the requested permission
+    </ResponseField>
+    
+    <ResponseField name="reason" type="string" nullable>
+      User's justification
+    </ResponseField>
+    
+    <ResponseField name="reviewedBy" type="string" nullable>
+      ID of admin who reviewed the request
+    </ResponseField>
+    
+    <ResponseField name="reviewedAt" type="string" nullable>
+      ISO 8601 timestamp of review
+    </ResponseField>
+    
+    <ResponseField name="reviewNotes" type="string" nullable>
+      Admin's review notes
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last update
+    </ResponseField>
+    
+    <ResponseField name="user" type="object">
+      User information
+    </ResponseField>
+    
+    <ResponseField name="requestedPermission" type="object" nullable>
+      Permission details
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Success message
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "880e8400-e29b-41d4-a716-446655440001",
+    "type": "GLOBAL_PERMISSION",
+    "status": "PENDING",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "I need this permission to create a new company for our team",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe",
+      "avatar": "https://example.com/avatars/johndoe.png"
+    },
+    "requestedPermission": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    }
+  },
+  "message": "Permission request submitted successfully. An admin will review it soon."
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  Invalid request (permission not found, already have permission, or pending request exists)
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "You already have a pending request for this permission"
+}
+```
+
+<ResponseField name="404 Not Found">
+  Requested permission not found
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Requested permission not found"
+}
+```
+
+---
+
+## Get User's Permission Requests
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/permission-requests?page=1&limit=20&status=PENDING" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves the authenticated user's own permission requests with pagination.
+
+### Endpoint
+
+```
+GET /api/permission-requests
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number (min: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="20">
+  Items per page (min: 1, max: 100)
+</ParamField>
+
+<ParamField query="status" type="string" optional>
+  Filter by status: `PENDING`, `APPROVED`, `REJECTED`, or `CANCELLED`
+</ParamField>
+
+<ParamField query="type" type="string" optional>
+  Filter by type: `GLOBAL_PERMISSION` or `OTHER`
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array" required>
+  Array of permission request objects
+</ResponseField>
+
+<ResponseField name="pagination" type="object" required>
+  Pagination metadata
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "userId": "880e8400-e29b-41d4-a716-446655440001",
+      "type": "GLOBAL_PERMISSION",
+      "status": "PENDING",
+      "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+      "reason": "I need this permission to create a new company for our team",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "reviewNotes": null,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z",
+      "user": {
+        "id": "880e8400-e29b-41d4-a716-446655440001",
+        "email": "john.doe@example.com",
+        "fullName": "John Doe",
+        "avatar": "https://example.com/avatars/johndoe.png"
+      },
+      "requestedPermission": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "key": "COMPANY:CREATE",
+        "description": "Allows creating new companies",
+        "scope": "GLOBAL"
+      },
+      "reviewer": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## Get All Permission Requests (Admin)
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/permission-requests/admin/all?page=1&limit=20&status=PENDING" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves all permission requests across all users. Requires platform admin privileges.
+
+### Endpoint
+
+```
+GET /api/permission-requests/admin/all
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number (min: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="20">
+  Items per page (min: 1, max: 100)
+</ParamField>
+
+<ParamField query="status" type="string" optional>
+  Filter by status: `PENDING`, `APPROVED`, `REJECTED`, or `CANCELLED`
+</ParamField>
+
+<ParamField query="type" type="string" optional>
+  Filter by type: `GLOBAL_PERMISSION` or `OTHER`
+</ParamField>
+
+### Response
+
+Same structure as "Get User's Permission Requests", but includes requests from all users.
+
+---
+
+## Get Permission Request by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.example.com/api/permission-requests/{id} \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves a specific permission request by ID. Users can only view their own requests unless they are platform admins.
+
+### Endpoint
+
+```
+GET /api/permission-requests/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission request
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The permission request object
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "880e8400-e29b-41d4-a716-446655440001",
+    "type": "GLOBAL_PERMISSION",
+    "status": "APPROVED",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "I need this permission to create a new company for our team",
+    "reviewedBy": "990e8400-e29b-41d4-a716-446655440002",
+    "reviewedAt": "2024-01-15T14:30:00.000Z",
+    "reviewNotes": "Approved based on team requirements",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T14:30:00.000Z",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe",
+      "avatar": "https://example.com/avatars/johndoe.png"
+    },
+    "requestedPermission": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    },
+    "reviewer": {
+      "id": "990e8400-e29b-41d4-a716-446655440002",
+      "email": "admin@example.com",
+      "fullName": "Admin User"
+    }
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="403 Forbidden">
+  User does not have permission to view this request
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  Permission request not found
+</ResponseField>
+
+---
+
+## Update Permission Request
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.example.com/api/permission-requests/{id} \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "Updated reason for needing this permission"
+  }'
+```
+</RequestExample>
+
+Updates a pending permission request. Only the request creator can update their own requests, and only while the status is `PENDING`.
+
+### Endpoint
+
+```
+PATCH /api/permission-requests/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission request to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="reason" type="string" optional>
+  Updated justification (max 1000 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The updated permission request object
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Success message
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "880e8400-e29b-41d4-a716-446655440001",
+    "type": "GLOBAL_PERMISSION",
+    "status": "PENDING",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "Updated reason for needing this permission",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T11:00:00.000Z",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe",
+      "avatar": "https://example.com/avatars/johndoe.png"
+    },
+    "requestedPermission": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    }
+  },
+  "message": "Permission request updated successfully"
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  Request is not in pending status
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Only pending requests can be updated"
+}
+```
+
+<ResponseField name="403 Forbidden">
+  User does not own this request
+</ResponseField>
+
+---
+
+## Cancel Permission Request
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/permission-requests/{id}/cancel \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Cancels a pending permission request. Only the request creator can cancel their own requests.
+
+### Endpoint
+
+```
+POST /api/permission-requests/{id}/cancel
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission request to cancel
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The cancelled permission request object
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Success message
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "880e8400-e29b-41d4-a716-446655440001",
+    "type": "GLOBAL_PERMISSION",
+    "status": "CANCELLED",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "I need this permission to create a new company for our team",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T11:30:00.000Z",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe",
+      "avatar": "https://example.com/avatars/johndoe.png"
+    },
+    "requestedPermission": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    }
+  },
+  "message": "Permission request cancelled"
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  Request is not in pending status
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Only pending requests can be cancelled"
+}
+```
+
+---
+
+## Review Permission Request (Admin)
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/permission-requests/admin/{id}/review \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "approve",
+    "reviewNotes": "Approved based on team requirements"
+  }'
+```
+</RequestExample>
+
+Approves or rejects a permission request. Requires platform admin privileges. When approved, the permission is automatically granted to the user.
+
+### Endpoint
+
+```
+POST /api/permission-requests/admin/{id}/review
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission request to review
+</ParamField>
+
+### Request Body
+
+<ParamField body="action" type="string" required>
+  Review action: `approve` or `reject`
+</ParamField>
+
+<ParamField body="reviewNotes" type="string" optional>
+  Notes about the review decision (max 1000 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The reviewed permission request object
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Success message indicating approval or rejection
+</ResponseField>
+
+### Response Example (Approved)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "880e8400-e29b-41d4-a716-446655440001",
+    "type": "GLOBAL_PERMISSION",
+    "status": "APPROVED",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "I need this permission to create a new company for our team",
+    "reviewedBy": "990e8400-e29b-41d4-a716-446655440002",
+    "reviewedAt": "2024-01-15T14:30:00.000Z",
+    "reviewNotes": "Approved based on team requirements",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T14:30:00.000Z",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe",
+      "avatar": "https://example.com/avatars/johndoe.png"
+    },
+    "requestedPermission": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    },
+    "reviewer": {
+      "id": "990e8400-e29b-41d4-a716-446655440002",
+      "email": "admin@example.com",
+      "fullName": "Admin User"
+    }
+  },
+  "message": "Permission request approved and permission granted to user."
+}
+```
+
+### Response Example (Rejected)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "880e8400-e29b-41d4-a716-446655440001",
+    "type": "GLOBAL_PERMISSION",
+    "status": "REJECTED",
+    "requestedPermissionId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason": "I need this permission to create a new company for our team",
+    "reviewedBy": "990e8400-e29b-41d4-a716-446655440002",
+    "reviewedAt": "2024-01-15T14:30:00.000Z",
+    "reviewNotes": "Insufficient justification provided",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T14:30:00.000Z",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe",
+      "avatar": "https://example.com/avatars/johndoe.png"
+    },
+    "requestedPermission": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    },
+    "reviewer": {
+      "id": "990e8400-e29b-41d4-a716-446655440002",
+      "email": "admin@example.com",
+      "fullName": "Admin User"
+    }
+  },
+  "message": "Permission request rejected."
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  Request is not in pending status
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Only pending requests can be reviewed"
+}
+```
+
+<ResponseField name="404 Not Found">
+  Permission request not found
+</ResponseField>
+
+---
+
+## Permission Request Statuses
+
+<ResponseField name="PENDING">
+  Request has been submitted and is awaiting admin review
+</ResponseField>
+
+<ResponseField name="APPROVED">
+  Request has been approved by an admin. The permission is automatically granted to the user.
+</ResponseField>
+
+<ResponseField name="REJECTED">
+  Request has been rejected by an admin
+</ResponseField>
+
+<ResponseField name="CANCELLED">
+  Request has been cancelled by the user before review
+</ResponseField>
+
+---
+
+## Permission Request Types
+
+<ResponseField name="GLOBAL_PERMISSION">
+  Request for a specific global permission. Requires `requestedPermissionId`.
+</ResponseField>
+
+<ResponseField name="OTHER">
+  Custom permission request type for special cases
+</ResponseField>

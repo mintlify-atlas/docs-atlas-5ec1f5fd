@@ -1,0 +1,145 @@
+---
+title: 'Login'
+api: 'POST /api/auth/login'
+description: 'Authenticate with email and password'
+---
+
+Authenticates a user with their email and password credentials. Returns the user profile along with access and refresh tokens. Updates the user's last login timestamp.
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+  User's email address. Must be a valid email format.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password. Required field.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Contains the authentication result.
+
+  <Expandable title="data properties">
+    <ResponseField name="user" type="object">
+      The authenticated user object.
+      
+      <Expandable title="user properties">
+        <ResponseField name="id" type="string">
+          Unique user identifier.
+        </ResponseField>
+        
+        <ResponseField name="email" type="string">
+          User's email address.
+        </ResponseField>
+        
+        <ResponseField name="fullName" type="string">
+          User's full name.
+        </ResponseField>
+        
+        <ResponseField name="phone" type="string | null">
+          User's phone number.
+        </ResponseField>
+        
+        <ResponseField name="avatar" type="string | null">
+          URL to user's avatar image.
+        </ResponseField>
+        
+        <ResponseField name="emailVerified" type="boolean">
+          Whether the email has been verified.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="accessToken" type="string">
+      JWT access token for API authentication.
+    </ResponseField>
+    
+    <ResponseField name="refreshToken" type="string">
+      Refresh token for obtaining new access tokens.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Invalid email or password credentials.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Invalid credentials",
+      "statusCode": 401
+    }
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  User account is disabled.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Account is disabled",
+      "statusCode": 403
+    }
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 Bad Request">
+  Invalid request body or validation error.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Validation error",
+      "statusCode": 400,
+      "details": []
+    }
+  }
+  ```
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.example.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "clx1234567890abcdef",
+      "email": "user@example.com",
+      "fullName": "John Doe",
+      "phone": "+1234567890",
+      "avatar": null,
+      "emailVerified": false
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "rt_clx1234567890abcdef"
+  }
+}
+```
+
+

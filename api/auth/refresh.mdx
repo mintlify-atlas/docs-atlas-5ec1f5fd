@@ -1,0 +1,124 @@
+---
+title: 'Refresh Token'
+api: 'POST /api/auth/refresh'
+description: 'Refresh access token using refresh token'
+---
+
+Obtains a new access token and refresh token pair using a valid refresh token. Requires the existing access token (even if expired) in the Authorization header to identify the user. The old refresh token is automatically revoked.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with the current access token (can be expired). Used to decode the user ID.
+  
+  Format: `Bearer <access_token>`
+</ParamField>
+
+## Request Body
+
+<ParamField body="refreshToken" type="string" required>
+  Valid refresh token previously issued during login or registration.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Contains the new token pair.
+
+  <Expandable title="data properties">
+    <ResponseField name="accessToken" type="string">
+      New JWT access token for API authentication.
+    </ResponseField>
+    
+    <ResponseField name="refreshToken" type="string">
+      New refresh token for future token refreshes.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Invalid or expired refresh token, missing access token, or user not found/disabled.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Invalid refresh token",
+      "statusCode": 401
+    }
+  }
+  ```
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Missing or unreadable access token",
+      "statusCode": 401
+    }
+  }
+  ```
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "User not found or disabled",
+      "statusCode": 401
+    }
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 Bad Request">
+  Invalid request body or validation error.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Validation error",
+      "statusCode": 400,
+      "details": []
+    }
+  }
+  ```
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.example.com/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{
+    "refreshToken": "rt_clx1234567890abcdef"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "rt_clx9876543210zyxwvu"
+  }
+}
+```
+
+## Notes
+
+- Both the access token (in Authorization header) and refresh token (in body) are required
+- The access token is decoded to extract the user ID, but doesn't need to be valid/unexpired
+- The old refresh token is revoked and a new pair is issued
+- This implements token rotation for enhanced security
+
+

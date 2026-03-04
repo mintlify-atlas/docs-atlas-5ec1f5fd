@@ -1,97 +1,164 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Platform API Documentation
+mode: custom
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-b from-[#020627] via-[#0a0f2e] to-[#0f1117] dark:from-[#020627] dark:via-[#0a0f2e] dark:to-[#0f1117]">
+  {/* Hero Section */}
+  <div className="relative py-20 px-4 sm:px-6 lg:px-8">
+    <div className="max-w-5xl mx-auto text-center">
+      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+        Multi-tenant Platform API
+      </h1>
+      <p className="text-lg sm:text-xl text-gray-300 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+        Build secure, scalable SaaS applications with role-based access control, invitation workflows, and comprehensive time tracking.
+      </p>
+      <div className="flex flex-wrap gap-4 justify-center">
+        <a 
+          href="/quickstart" 
+          className="inline-flex items-center px-6 py-3 text-base font-medium rounded-lg text-white bg-[#529c3a] hover:bg-[#3d7a2b] transition-colors no-underline"
+        >
+          Get Started
+        </a>
+        <a 
+          href="/api/auth/register" 
+          className="inline-flex items-center px-6 py-3 text-base font-medium rounded-lg text-white border border-white/30 bg-white/10 hover:bg-white/20 transition-colors no-underline"
+        >
+          API Reference
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+{/* Quick Start Section */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get up and running with the Platform API in minutes
+  </p>
+  
+  <Steps>
+    <Step title="Clone and install dependencies">
+      Clone the repository and install the required dependencies:
+      
+      ```bash
+      git clone https://github.com/LeonardoCaero/platform-api.git
+      cd platform-api
+      npm install
+      ```
+    </Step>
+    
+    <Step title="Configure environment variables">
+      Copy the example environment file and configure your database connection:
+      
+      ```bash
+      cp .env.example .env
+      ```
+      
+      <Note>
+        Update the `.env` file with your PostgreSQL connection string and JWT secrets.
+      </Note>
+    </Step>
+    
+    <Step title="Initialize the database">
+      Run database migrations and seed initial data:
+      
+      ```bash
+      npm run db:rebuild
+      ```
+    </Step>
+    
+    <Step title="Start the development server">
+      Launch the API server:
+      
+      ```bash
+      npm run dev
+      ```
+      
+      The API will be available at `http://localhost:4000`
+    </Step>
+  </Steps>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+{/* Features Grid */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Core features
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Everything you need to build a multi-tenant SaaS platform
+  </p>
+  
+  <CardGroup cols={2}>
+    <Card title="Multi-tenancy" icon="building" href="/concepts/multi-tenancy">
+      Isolated company workspaces with complete data separation and tenant-specific configurations
+    </Card>
+    <Card title="Authentication" icon="key" href="/authentication">
+      JWT-based authentication with secure refresh tokens and automated token rotation
+    </Card>
+    <Card title="Role-based Access Control" icon="shield-halved" href="/concepts/rbac">
+      Granular permissions system with company-specific roles and global platform permissions
+    </Card>
+    <Card title="Invitation System" icon="envelope" href="/concepts/invitations">
+      Flexible invitation workflows for company creation and member onboarding
+    </Card>
+    <Card title="Time Tracking" icon="clock" href="/guides/time-tracking">
+      Comprehensive time tracking with projects, categories, and client billing support
+    </Card>
+    <Card title="Client Management" icon="users" href="/api/clients/overview">
+      Manage clients, sites, and rate rules with overtime calculations
+    </Card>
+  </CardGroup>
+</div>
 
-## Make it yours
+{/* API Resources */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    API resources
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Explore the available endpoints and integrate with your application
+  </p>
+  
+  <CardGroup cols={3}>
+    <Card title="Authentication" icon="lock" href="/api/auth/register">
+      User registration, login, and token management
+    </Card>
+    <Card title="Companies" icon="building" href="/api/companies/overview">
+      Create and manage company workspaces
+    </Card>
+    <Card title="Users" icon="user" href="/api/users/overview">
+      User profiles and management
+    </Card>
+    <Card title="Memberships" icon="user-group" href="/api/memberships/invitations">
+      Company member invitations and roles
+    </Card>
+    <Card title="Permissions" icon="shield" href="/api/permissions/overview">
+      Permission management and access control
+    </Card>
+    <Card title="Time Tracking" icon="stopwatch" href="/api/time-tracker/entries">
+      Time entries, projects, and categories
+    </Card>
+  </CardGroup>
+</div>
 
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+{/* Support Banner */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl border border-[#27272a] dark:border-[#27272a] bg-[#1a1d27] dark:bg-[#1a1d27] p-8 sm:p-10">
+    <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-3">
+      Ready to get started?
+    </h2>
+    <p className="text-base text-gray-300 dark:text-gray-300 mb-6">
+      Follow our quickstart guide to set up your first multi-tenant application with the Platform API.
+    </p>
+    <a 
+      href="/quickstart" 
+      className="inline-flex items-center px-6 py-3 text-base font-medium rounded-lg text-white bg-[#529c3a] hover:bg-[#3d7a2b] transition-colors no-underline"
+    >
+      View Quickstart Guide
+    </a>
+  </div>
+</div>

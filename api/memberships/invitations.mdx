@@ -1,0 +1,437 @@
+---
+title: 'Member Invitations'
+description: 'Endpoints for managing member invitations to companies'
+---
+
+## Overview
+
+The Member Invitations API allows users to:
+- View their pending company invitations
+- Accept invitations to join a company
+- Decline invitations they don't want to accept
+
+Company administrators can also create new member invitations through the Companies API.
+
+## Authentication
+
+All endpoints require authentication using a Bearer token in the `Authorization` header.
+
+---
+
+## Get Pending Invitations
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.example.com/api/invitations \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves all pending company invitations for the authenticated user.
+
+### Endpoint
+
+```
+GET /api/invitations
+```
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array" required>
+  Array of pending invitation objects
+  
+  <Expandable title="Invitation Object">
+    <ResponseField name="id" type="string" required>
+      Unique identifier for the membership invitation
+    </ResponseField>
+    
+    <ResponseField name="company" type="object" required>
+      <Expandable title="Company Details">
+        <ResponseField name="id" type="string">
+          Company unique identifier
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Company name
+        </ResponseField>
+        
+        <ResponseField name="slug" type="string">
+          Company URL slug
+        </ResponseField>
+        
+        <ResponseField name="logo" type="string" nullable>
+          Company logo URL
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="roles" type="array" required>
+      Array of roles that will be assigned upon acceptance
+      
+      <Expandable title="Role Object">
+        <ResponseField name="id" type="string">
+          Role unique identifier
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Role name
+        </ResponseField>
+        
+        <ResponseField name="color" type="string" nullable>
+          Role color in hex format
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="invitedAt" type="string" required>
+      ISO 8601 timestamp of when the invitation was created
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "company": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "Acme Corporation",
+        "slug": "acme-corp",
+        "logo": "https://example.com/logos/acme.png"
+      },
+      "roles": [
+        {
+          "id": "789e4567-e89b-12d3-a456-426614174000",
+          "name": "Member",
+          "color": "#6366F1"
+        }
+      ],
+      "invitedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## Accept Invitation
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/invitations/{membershipId}/accept \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Accepts a pending company invitation and activates the membership.
+
+### Endpoint
+
+```
+POST /api/invitations/{membershipId}/accept
+```
+
+### Path Parameters
+
+<ParamField path="membershipId" type="string" required>
+  The unique identifier of the membership invitation to accept
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the invitation was successfully accepted
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  Invitation not found or does not belong to the authenticated user
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Invitation not found"
+}
+```
+
+---
+
+## Decline Invitation
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/invitations/{membershipId}/decline \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Declines a pending company invitation and removes it.
+
+### Endpoint
+
+```
+POST /api/invitations/{membershipId}/decline
+```
+
+### Path Parameters
+
+<ParamField path="membershipId" type="string" required>
+  The unique identifier of the membership invitation to decline
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the invitation was successfully declined
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  Invitation not found or does not belong to the authenticated user
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Invitation not found"
+}
+```
+
+---
+
+## Create Member Invitation (Company Admins)
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/companies/{companyId}/members/invite \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "position": "Software Engineer",
+    "department": "Engineering"
+  }'
+```
+</RequestExample>
+
+Invites a user to join a company. Requires appropriate permissions within the company.
+
+### Endpoint
+
+```
+POST /api/companies/{companyId}/members/invite
+```
+
+### Path Parameters
+
+<ParamField path="companyId" type="string" required>
+  The unique identifier of the company
+</ParamField>
+
+### Request Body
+
+<ParamField body="userId" type="string" required>
+  UUID of the user to invite. User must exist in the system.
+</ParamField>
+
+<ParamField body="position" type="string" optional>
+  Job position or title for the member (max 100 characters)
+</ParamField>
+
+<ParamField body="department" type="string" optional>
+  Department name (max 100 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The created membership invitation object
+  
+  <Expandable title="Membership Object">
+    <ResponseField name="id" type="string">
+      Unique identifier for the membership
+    </ResponseField>
+    
+    <ResponseField name="companyId" type="string">
+      Company unique identifier
+    </ResponseField>
+    
+    <ResponseField name="userId" type="string">
+      User unique identifier
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Current status: `INVITED`, `ACTIVE`, or `SUSPENDED`
+    </ResponseField>
+    
+    <ResponseField name="position" type="string" nullable>
+      Job position or title
+    </ResponseField>
+    
+    <ResponseField name="department" type="string" nullable>
+      Department name
+    </ResponseField>
+    
+    <ResponseField name="invitedAt" type="string">
+      ISO 8601 timestamp of invitation creation
+    </ResponseField>
+    
+    <ResponseField name="activatedAt" type="string" nullable>
+      ISO 8601 timestamp of when invitation was accepted
+    </ResponseField>
+    
+    <ResponseField name="expiresAt" type="string" nullable>
+      ISO 8601 timestamp of invitation expiration
+    </ResponseField>
+    
+    <ResponseField name="user" type="object">
+      User information
+      
+      <Expandable title="User Object">
+        <ResponseField name="id" type="string">
+          User unique identifier
+        </ResponseField>
+        
+        <ResponseField name="email" type="string">
+          User email address
+        </ResponseField>
+        
+        <ResponseField name="firstName" type="string">
+          User first name
+        </ResponseField>
+        
+        <ResponseField name="lastName" type="string" nullable>
+          User last name
+        </ResponseField>
+        
+        <ResponseField name="avatarUrl" type="string" nullable>
+          User avatar URL
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="roles" type="array">
+      Array of assigned roles (typically includes the default company role)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "companyId": "123e4567-e89b-12d3-a456-426614174000",
+    "userId": "987e4567-e89b-12d3-a456-426614174000",
+    "status": "INVITED",
+    "position": "Software Engineer",
+    "department": "Engineering",
+    "invitedAt": "2024-01-15T10:30:00.000Z",
+    "activatedAt": null,
+    "expiresAt": null,
+    "user": {
+      "id": "987e4567-e89b-12d3-a456-426614174000",
+      "email": "john.doe@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "avatarUrl": "https://example.com/avatars/johndoe.png"
+    },
+    "roles": [
+      {
+        "id": "789e4567-e89b-12d3-a456-426614174000",
+        "companyId": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "Member",
+        "description": "Default member role",
+        "color": "#6366F1",
+        "isSystem": true,
+        "isDefault": true,
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "updatedAt": "2024-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  User not found
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "User not found"
+}
+```
+
+<ResponseField name="409 Conflict">
+  User is already a member of this company
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "User is already a member of this company"
+}
+```
+
+---
+
+## Real-time Notifications
+
+When a user is invited to a company, they receive a real-time Server-Sent Event (SSE) notification on the `invitation:new` event channel with the following payload:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "company": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "Acme Corporation",
+    "slug": "acme-corp",
+    "logo": "https://example.com/logos/acme.png"
+  },
+  "roles": [
+    {
+      "id": "789e4567-e89b-12d3-a456-426614174000",
+      "name": "Member",
+      "color": "#6366F1"
+    }
+  ],
+  "invitedAt": "2024-01-15T10:30:00.000Z"
+}
+```

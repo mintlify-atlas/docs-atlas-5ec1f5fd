@@ -1,0 +1,657 @@
+---
+title: User Management
+description: Managing users, inviting members, assigning roles, supervisor hierarchy, and user profiles
+---
+
+## Overview
+
+The Platform API provides comprehensive user management capabilities including:
+
+- Inviting and managing company members
+- Assigning and updating roles
+- Building supervisor hierarchies
+- Managing user profiles and status
+- Handling membership lifecycle (invited, active, suspended)
+
+---
+
+## Member Invitations
+
+### Search Non-Members
+
+Before inviting, search for users not yet in your company:
+
+```bash Request
+GET /api/companies/{companyId}/members/non-members?search=john
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "user-123",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "avatarUrl": "https://example.com/avatar.jpg"
+    }
+  ]
+}
+```
+
+### Invite Member to Company
+
+Add existing users to your company:
+
+```bash Request
+POST /api/companies/{companyId}/members
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "userId": "user-123",
+  "position": "Senior Developer",
+  "department": "Engineering"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "membership-456",
+    "companyId": "company-789",
+    "userId": "user-123",
+    "status": "INVITED",
+    "position": "Senior Developer",
+    "department": "Engineering",
+    "invitedAt": "2026-03-04T18:41:00Z",
+    "user": {
+      "id": "user-123",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe"
+    },
+    "roles": [
+      {
+        "id": "role-member",
+        "name": "Member",
+        "color": "#6B7280",
+        "isDefault": true
+      }
+    ]
+  }
+}
+```
+
+<Info>
+**Real-time Notification:** When a user is invited, they receive a real-time SSE notification with event type `invitation:new`.
+</Info>
+
+### Get Pending Invitations
+
+Users can view their pending company invitations:
+
+```bash Request
+GET /api/invitations/pending
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "membership-456",
+      "company": {
+        "id": "company-789",
+        "name": "Acme Corporation",
+        "slug": "acme-corp",
+        "logo": "https://example.com/logo.png"
+      },
+      "roles": [
+        {
+          "id": "role-member",
+          "name": "Member",
+          "color": "#6B7280"
+        }
+      ],
+      "invitedAt": "2026-03-04T18:41:00Z"
+    }
+  ]
+}
+```
+
+### Accept Invitation
+
+```bash Request
+POST /api/invitations/{membershipId}/accept
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true
+}
+```
+
+<Check>
+When accepted, the membership status changes from `INVITED` to `ACTIVE` and `activatedAt` timestamp is set.
+</Check>
+
+### Decline Invitation
+
+```bash Request
+POST /api/invitations/{membershipId}/decline
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true
+}
+```
+
+<Note>
+Declining an invitation removes the membership record from the database.
+</Note>
+
+---
+
+## Managing Company Members
+
+### List Company Members
+
+Get all members of a company:
+
+```bash Request
+GET /api/companies/{companyId}/members
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "membership-001",
+      "companyId": "company-789",
+      "userId": "user-owner",
+      "status": "ACTIVE",
+      "position": "CEO",
+      "department": "Executive",
+      "invitedAt": "2026-03-01T10:00:00Z",
+      "activatedAt": "2026-03-01T10:00:00Z",
+      "user": {
+        "id": "user-owner",
+        "email": "founder@acme.com",
+        "firstName": "Jane",
+        "lastName": "Smith",
+        "avatarUrl": "https://example.com/jane.jpg"
+      },
+      "roles": [
+        {
+          "id": "role-owner",
+          "name": "Owner",
+          "color": "#EF4444",
+          "isSystem": true
+        }
+      ]
+    },
+    {
+      "id": "membership-002",
+      "companyId": "company-789",
+      "userId": "user-123",
+      "status": "ACTIVE",
+      "position": "Senior Developer",
+      "department": "Engineering",
+      "invitedAt": "2026-03-02T14:00:00Z",
+      "activatedAt": "2026-03-02T15:30:00Z",
+      "user": {
+        "id": "user-123",
+        "email": "john@acme.com",
+        "firstName": "John",
+        "lastName": "Doe"
+      },
+      "roles": [
+        {
+          "id": "role-member",
+          "name": "Member",
+          "color": "#6B7280"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Membership Status Values
+
+<ParamField path="status" type="enum">
+  - `INVITED` - User invited but hasn't accepted yet
+  - `ACTIVE` - User is an active member of the company
+  - `SUSPENDED` - User's access is temporarily restricted
+</ParamField>
+
+---
+
+## Assigning Roles
+
+### Update Member Roles
+
+Assign or update roles for a company member:
+
+```bash Request
+PATCH /api/companies/{companyId}/members/{memberId}/roles
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "roleIds": [
+    "role-admin",
+    "role-manager"
+  ]
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "membership-002",
+    "userId": "user-123",
+    "status": "ACTIVE",
+    "roles": [
+      {
+        "id": "role-admin",
+        "name": "Admin",
+        "color": "#F59E0B",
+        "description": "Administrator with elevated privileges"
+      },
+      {
+        "id": "role-manager",
+        "name": "Manager",
+        "color": "#3B82F6",
+        "description": "Manager with team oversight"
+      }
+    ]
+  }
+}
+```
+
+<Warning>
+**Role Replacement:** This endpoint replaces all existing roles. Pass an empty array `[]` to remove all roles.
+</Warning>
+
+### Default Roles
+
+When a company is created, four default roles are automatically generated:
+
+<CardGroup cols={2}>
+  <Card title="Owner" icon="crown" color="#EF4444">
+    Full access, system role, assigned to creator
+  </Card>
+  <Card title="Admin" icon="user-shield" color="#F59E0B">
+    Elevated privileges, system role
+  </Card>
+  <Card title="Manager" icon="users-gear" color="#3B82F6">
+    Team oversight, custom role
+  </Card>
+  <Card title="Member" icon="user" color="#6B7280">
+    Standard access, system role, default for new members
+  </Card>
+</CardGroup>
+
+---
+
+## Supervisor Hierarchy
+
+### Understanding the Hierarchy
+
+The platform supports supervisor-subordinate relationships within companies through the `supervisorMembershipId` field on the Membership model.
+
+```prisma Schema Reference
+model Membership {
+  id                     String      @id
+  supervisorMembershipId String?     @db.Uuid
+  supervisor             Membership? @relation("MembershipSupervisor")
+  subordinates           Membership[] @relation("MembershipSupervisor")
+  // ... other fields
+}
+```
+
+### Set Supervisor
+
+Assign a supervisor to a member by updating their membership:
+
+```bash Request
+PATCH /api/companies/{companyId}/members/{memberId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "supervisorMembershipId": "membership-owner"
+}
+```
+
+<Note>
+The `supervisorMembershipId` references another membership ID within the same company, not a user ID.
+</Note>
+
+### Remove Supervisor
+
+Set the supervisor to `null` to remove the relationship:
+
+```bash Request
+PATCH /api/companies/{companyId}/members/{memberId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "supervisorMembershipId": null
+}
+```
+
+### Query Subordinates
+
+Retrieve all subordinates of a member:
+
+```javascript Example Query
+const membership = await prisma.membership.findUnique({
+  where: { id: membershipId },
+  include: {
+    subordinates: {
+      include: {
+        user: true,
+        roles: { include: { role: true } }
+      }
+    }
+  }
+});
+```
+
+---
+
+## User Profiles
+
+### Get User by ID
+
+```bash Request
+GET /api/users/{userId}
+Authorization: Bearer {token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "user-123",
+    "email": "john@example.com",
+    "fullName": "John Doe",
+    "phone": "+1234567890",
+    "avatar": "https://example.com/avatar.jpg",
+    "emailVerified": true,
+    "lastLoginAt": "2026-03-04T18:00:00Z",
+    "createdAt": "2026-01-15T10:00:00Z"
+  }
+}
+```
+
+### Update User Profile
+
+```bash Request
+PATCH /api/users/{userId}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "fullName": "John Michael Doe",
+  "phone": "+1234567890",
+  "avatar": "https://example.com/new-avatar.jpg"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "user-123",
+    "email": "john@example.com",
+    "fullName": "John Michael Doe",
+    "phone": "+1234567890",
+    "avatar": "https://example.com/new-avatar.jpg",
+    "updatedAt": "2026-03-04T19:00:00Z"
+  }
+}
+```
+
+<Info>
+Users can update their own profile. Admins can update any user's profile based on permissions.
+</Info>
+
+### Change Password
+
+```bash Request
+POST /api/users/{userId}/password
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "currentPassword": "oldPassword123",
+  "newPassword": "newSecurePassword456"
+}
+```
+
+```json Response
+{
+  "success": true,
+  "message": "Password changed successfully"
+}
+```
+
+<Warning>
+Requires the current password for verification. Minimum password length is 8 characters.
+</Warning>
+
+### List All Users (Admin)
+
+Platform admins can list all users:
+
+```bash Request
+GET /api/users?page=1&limit=20&search=john
+Authorization: Bearer {admin-token}
+```
+
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "user-123",
+      "email": "john@example.com",
+      "fullName": "John Doe",
+      "emailVerified": true,
+      "isDisabled": false,
+      "lastLoginAt": "2026-03-04T18:00:00Z",
+      "createdAt": "2026-01-15T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## User Status Management
+
+### Disable User Account
+
+Platform admins can disable user accounts (global kill-switch):
+
+```bash Request
+POST /api/users/{userId}/disable
+Authorization: Bearer {admin-token}
+```
+
+```json Response
+{
+  "success": true,
+  "message": "User account disabled successfully"
+}
+```
+
+<Warning>
+**Global Effect:** Disabling a user blocks access across ALL companies. Use membership suspension for company-specific restrictions.
+</Warning>
+
+### User Disable Fields
+
+```prisma Schema Reference
+model User {
+  isDisabled Boolean   @default(false)
+  disabledAt DateTime?
+  disabledBy String?   @db.Uuid
+  // ... other fields
+}
+```
+
+---
+
+## Remove Member
+
+Remove a member from the company:
+
+```bash Request
+DELETE /api/companies/{companyId}/members/{memberId}
+Authorization: Bearer {token}
+```
+
+```http Response
+HTTP/1.1 204 No Content
+```
+
+<Note>
+This permanently deletes the membership record. Consider suspending instead for temporary access restrictions.
+</Note>
+
+---
+
+## Contract Information
+
+### Contract Types
+
+Members can have different contract types:
+
+<ParamField path="contractType" type="enum">
+  - `EMPLOYEE` - Full-time employee
+  - `FREELANCE` - Freelance contractor
+  - `INTERN` - Internship position
+  - `CONTRACTOR` - Contract worker
+  - `OTHER` - Other arrangement
+</ParamField>
+
+### Hourly Rate
+
+Set hourly rates for billing and time tracking:
+
+```javascript Example
+{
+  "contractType": "FREELANCE",
+  "hourlyRate": 125.00
+}
+```
+
+<Info>
+The `hourlyRate` field uses `Decimal(10,2)` precision for accurate financial calculations.
+</Info>
+
+---
+
+## Best Practices
+
+### Membership Lifecycle
+
+<Steps>
+  <Step title="Invite">
+    Create membership with `INVITED` status and assign default role
+  </Step>
+  <Step title="Notify">
+    User receives real-time notification via SSE
+  </Step>
+  <Step title="Accept">
+    User accepts invitation, status changes to `ACTIVE`
+  </Step>
+  <Step title="Configure">
+    Update roles, position, department, and supervisor as needed
+  </Step>
+</Steps>
+
+### Role Assignment Strategy
+
+<Check>
+**Recommended Approach:**
+- Assign default "Member" role on invitation
+- Upgrade roles based on responsibilities
+- Use multiple roles for granular permissions
+- Review role assignments regularly
+</Check>
+
+### Supervisor Hierarchy Design
+
+```javascript Example Organization
+CEO (no supervisor)
+├── CTO (supervisor: CEO)
+│   ├── Engineering Manager (supervisor: CTO)
+│   │   ├── Senior Dev (supervisor: Engineering Manager)
+│   │   └── Junior Dev (supervisor: Engineering Manager)
+│   └── DevOps Lead (supervisor: CTO)
+└── CFO (supervisor: CEO)
+    └── Accountant (supervisor: CFO)
+```
+
+### Position and Department
+
+Use structured values for consistency:
+
+```json Example
+{
+  "position": "Senior Software Engineer",
+  "department": "Engineering"
+}
+```
+
+**Common Departments:**
+- Engineering
+- Product
+- Design
+- Marketing
+- Sales
+- Operations
+- Finance
+- Human Resources
+
+---
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Company Setup" icon="building" href="/guides/company-setup">
+    Create and configure companies
+  </Card>
+  <Card title="Permissions" icon="shield" href="/guides/permissions">
+    Manage roles and permissions
+  </Card>
+  <Card title="Time Tracking" icon="clock" href="/guides/time-tracking">
+    Track member time entries
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/memberships/invitations">
+    View complete API documentation
+  </Card>
+</CardGroup>

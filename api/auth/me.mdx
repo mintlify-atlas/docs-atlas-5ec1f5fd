@@ -1,0 +1,233 @@
+---
+title: 'Get Current User'
+api: 'GET /api/auth/me'
+description: 'Get current authenticated user profile with platform status, permissions, and companies'
+---
+
+Retrieves the complete profile of the currently authenticated user, including platform admin status, global permissions, and company memberships with their associated roles and permissions.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with a valid access token.
+  
+  Format: `Bearer <access_token>`
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Contains the user profile and related data.
+
+  <Expandable title="data properties">
+    <ResponseField name="id" type="string">
+      Unique user identifier.
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      User's email address.
+    </ResponseField>
+    
+    <ResponseField name="fullName" type="string">
+      User's full name.
+    </ResponseField>
+    
+    <ResponseField name="phone" type="string | null">
+      User's phone number.
+    </ResponseField>
+    
+    <ResponseField name="avatar" type="string | null">
+      URL to user's avatar image.
+    </ResponseField>
+    
+    <ResponseField name="emailVerified" type="boolean">
+      Whether the email has been verified.
+    </ResponseField>
+    
+    <ResponseField name="lastLoginAt" type="string | null">
+      ISO 8601 timestamp of last login.
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of account creation.
+    </ResponseField>
+    
+    <ResponseField name="isPlatformAdmin" type="boolean">
+      Whether the user has platform admin privileges.
+    </ResponseField>
+    
+    <ResponseField name="globalPermissions" type="array">
+      List of global permissions granted to the user.
+      
+      <Expandable title="globalPermissions items">
+        <ResponseField name="key" type="string">
+          Unique permission key.
+        </ResponseField>
+        
+        <ResponseField name="description" type="string">
+          Human-readable permission description.
+        </ResponseField>
+        
+        <ResponseField name="grantedAt" type="string">
+          ISO 8601 timestamp when permission was granted.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="companies" type="array">
+      List of companies the user is a member of.
+      
+      <Expandable title="companies items">
+        <ResponseField name="id" type="string">
+          Unique company identifier.
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Company name.
+        </ResponseField>
+        
+        <ResponseField name="slug" type="string">
+          Company URL slug.
+        </ResponseField>
+        
+        <ResponseField name="logo" type="string | null">
+          URL to company logo.
+        </ResponseField>
+        
+        <ResponseField name="status" type="string">
+          Company status (e.g., ACTIVE, SUSPENDED).
+        </ResponseField>
+        
+        <ResponseField name="membershipId" type="string">
+          Unique membership identifier.
+        </ResponseField>
+        
+        <ResponseField name="membershipStatus" type="string">
+          Membership status (always ACTIVE in this response).
+        </ResponseField>
+        
+        <ResponseField name="roles" type="array">
+          List of roles assigned to the user in this company.
+          
+          <Expandable title="roles items">
+            <ResponseField name="id" type="string">
+              Role identifier.
+            </ResponseField>
+            
+            <ResponseField name="name" type="string">
+              Role name.
+            </ResponseField>
+            
+            <ResponseField name="color" type="string">
+              Hex color code for UI display.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        
+        <ResponseField name="permissions" type="array">
+          List of unique permission keys aggregated from all roles in this company.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Missing or invalid access token.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Unauthorized",
+      "statusCode": 401
+    }
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  User not found in the database.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "User not found",
+      "statusCode": 404
+    }
+  }
+  ```
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET https://api.example.com/api/auth/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "clx1234567890abcdef",
+    "email": "user@example.com",
+    "fullName": "John Doe",
+    "phone": "+1234567890",
+    "avatar": "https://example.com/avatars/user.jpg",
+    "emailVerified": true,
+    "lastLoginAt": "2026-03-04T10:30:00.000Z",
+    "createdAt": "2026-01-15T08:20:00.000Z",
+    "isPlatformAdmin": false,
+    "globalPermissions": [
+      {
+        "key": "users:manage",
+        "description": "Manage all platform users",
+        "grantedAt": "2026-02-01T12:00:00.000Z"
+      }
+    ],
+    "companies": [
+      {
+        "id": "clx9876543210zyxwvu",
+        "name": "Acme Corporation",
+        "slug": "acme-corp",
+        "logo": "https://example.com/logos/acme.png",
+        "status": "ACTIVE",
+        "membershipId": "clx5555555555aaaaa",
+        "membershipStatus": "ACTIVE",
+        "roles": [
+          {
+            "id": "clx7777777777bbbbb",
+            "name": "Admin",
+            "color": "#FF5733"
+          }
+        ],
+        "permissions": [
+          "company:manage",
+          "members:invite",
+          "projects:create",
+          "projects:delete"
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Notes
+
+- Only returns active memberships (status: 'ACTIVE')
+- Permissions are deduplicated across all roles within each company
+- Global permissions are separate from company-specific permissions
+- Platform admin status is determined by the presence of a platformAdmin record
+
+

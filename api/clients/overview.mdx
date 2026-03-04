@@ -1,0 +1,780 @@
+---
+title: 'Client Management'
+description: 'Manage clients, sites, rate rules, and resources for time entry tracking and billing'
+---
+
+## Overview
+
+The Client Management API provides comprehensive endpoints for managing clients, their sites, rate rules, and billing resources. This system enables sophisticated overtime calculation and rate application for time entries.
+
+### Key Concepts
+
+- **Clients**: Companies or organizations you provide services to
+- **Client Sites**: Physical or logical locations where work is performed
+- **Rate Rules**: Define billing rates and overtime triggers for a client
+- **Resources**: Named billing rates within a rate rule (e.g., "Senior Developer", "Junior Developer")
+
+### Architecture
+
+```
+Client
+├── Sites (multiple)
+├── Rate Rules (multiple)
+│   ├── Resources (multiple)
+│   └── Overtime Triggers
+└── Time Entries (multiple)
+```
+
+## Authentication
+
+All endpoints require:
+- Valid JWT authentication token
+- Platform admin role (checked via middleware)
+
+---
+
+# Clients
+
+## Create Client
+
+<RequestExample>
+```bash Create Client
+curl -X POST https://api.example.com/clients \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Big Client Inc",
+    "taxId": "12-3456789",
+    "email": "contact@bigclient.com",
+    "phone": "+1-555-123-4567",
+    "address": "123 Business St, Suite 100, City, ST 12345",
+    "notes": "Primary client for Q1 2026",
+    "isActive": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Big Client Inc",
+    "taxId": "12-3456789",
+    "email": "contact@bigclient.com",
+    "phone": "+1-555-123-4567",
+    "address": "123 Business St, Suite 100, City, ST 12345",
+    "notes": "Primary client for Q1 2026",
+    "isActive": true,
+    "isDefault": false,
+    "sites": [],
+    "rateRules": [],
+    "_count": {
+      "timeEntries": 0
+    },
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z",
+    "createdBy": "440e8400-e29b-41d4-a716-446655440000",
+    "updatedBy": "440e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+</ResponseExample>
+
+### Request Body
+
+<ParamField body="companyId" type="string" required>
+  UUID of your company
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Client name (1-255 characters)
+</ParamField>
+
+<ParamField body="taxId" type="string">
+  Tax identification number (max 50 characters)
+</ParamField>
+
+<ParamField body="email" type="string">
+  Contact email (max 320 characters)
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Contact phone number (max 20 characters)
+</ParamField>
+
+<ParamField body="address" type="string">
+  Physical or mailing address (max 1000 characters)
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Internal notes (max 2000 characters)
+</ParamField>
+
+<ParamField body="isActive" type="boolean" default="true">
+  Whether client is active
+</ParamField>
+
+### Access Control
+
+Only company owners, admins, and platform admins can create clients.
+
+---
+
+## List Clients
+
+<RequestExample>
+```bash List Clients
+curl -X GET "https://api.example.com/clients?companyId=550e8400-e29b-41d4-a716-446655440000&page=1&limit=50&isActive=true&search=Big" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "name": "Big Client Inc",
+      "email": "contact@bigclient.com",
+      "isActive": true,
+      "sites": [
+        {
+          "id": "771e8400-e29b-41d4-a716-446655440000",
+          "name": "Main Office",
+          "city": "New York",
+          "isActive": true
+        }
+      ],
+      "rateRules": [
+        {
+          "id": "772e8400-e29b-41d4-a716-446655440000",
+          "name": "Standard Rates 2026",
+          "baseRatePerHour": "75.00",
+          "overtimeRatePerHour": "112.50",
+          "currency": "EUR",
+          "isActive": true,
+          "resources": [
+            {
+              "id": "773e8400-e29b-41d4-a716-446655440000",
+              "name": "Senior Developer",
+              "baseRatePerHour": "100.00",
+              "isActive": true
+            }
+          ]
+        }
+      ],
+      "_count": {
+        "timeEntries": 45
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+</ResponseExample>
+
+### Query Parameters
+
+<ParamField query="companyId" type="string" required>
+  Filter by company UUID
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  Page number (min: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="50">
+  Items per page (1-200)
+</ParamField>
+
+<ParamField query="isActive" type="boolean">
+  Filter by active status
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search by client name (case-insensitive)
+</ParamField>
+
+---
+
+## Get Client by ID
+
+<RequestExample>
+```bash Get Client
+curl -X GET https://api.example.com/clients/770e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Returns full client details including all sites and rate rules.
+
+---
+
+## Update Client
+
+<RequestExample>
+```bash Update Client
+curl -X PATCH https://api.example.com/clients/770e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Big Client Corporation",
+    "isDefault": true,
+    "notes": "Upgraded to primary client status"
+  }'
+```
+</RequestExample>
+
+### Request Body
+
+All fields are optional.
+
+<ParamField body="name" type="string">
+  Update client name
+</ParamField>
+
+<ParamField body="taxId" type="string">
+  Update tax ID
+</ParamField>
+
+<ParamField body="email" type="string">
+  Update email
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Update phone
+</ParamField>
+
+<ParamField body="address" type="string">
+  Update address
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Update notes
+</ParamField>
+
+<ParamField body="isActive" type="boolean">
+  Update active status
+</ParamField>
+
+<ParamField body="isDefault" type="boolean">
+  Set as default client
+  
+  <Note>
+    When set to `true`, all other clients in the company are automatically set to `isDefault: false` via transaction.
+  </Note>
+</ParamField>
+
+---
+
+## Delete Client
+
+<RequestExample>
+```bash Delete Client
+curl -X DELETE https://api.example.com/clients/770e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<Warning>
+  Deleting a client cascades to all sites and rate rules. Time entries linked to the client will have `clientId` set to `null`.
+</Warning>
+
+---
+
+# Client Sites
+
+Sites represent physical or logical locations where work is performed for a client.
+
+## Create Client Site
+
+<RequestExample>
+```bash Create Site
+curl -X POST https://api.example.com/clients/770e8400-e29b-41d4-a716-446655440000/sites \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Main Office",
+    "address": "456 Corporate Blvd",
+    "city": "New York",
+    "notes": "Primary work location",
+    "isActive": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "771e8400-e29b-41d4-a716-446655440000",
+    "clientId": "770e8400-e29b-41d4-a716-446655440000",
+    "name": "Main Office",
+    "address": "456 Corporate Blvd",
+    "city": "New York",
+    "notes": "Primary work location",
+    "isActive": true,
+    "isDefault": false,
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="clientId" type="string" required>
+  UUID of the client
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Site name (1-255 characters)
+</ParamField>
+
+<ParamField body="address" type="string">
+  Site address (max 1000 characters)
+</ParamField>
+
+<ParamField body="city" type="string">
+  City name (max 100 characters)
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Internal notes (max 2000 characters)
+</ParamField>
+
+<ParamField body="isActive" type="boolean" default="true">
+  Whether site is active
+</ParamField>
+
+---
+
+## Update Client Site
+
+<RequestExample>
+```bash Update Site
+curl -X PATCH https://api.example.com/clients/sites/771e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isDefault": true
+  }'
+```
+</RequestExample>
+
+### Path Parameters
+
+<ParamField path="siteId" type="string" required>
+  UUID of the site
+</ParamField>
+
+<Note>
+  When `isDefault: true` is set, all other sites for the same client are automatically set to `isDefault: false`.
+</Note>
+
+---
+
+## Delete Client Site
+
+<RequestExample>
+```bash Delete Site
+curl -X DELETE https://api.example.com/clients/sites/771e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+---
+
+# Rate Rules
+
+Rate rules define billing rates and overtime calculation logic for a client.
+
+## Create Rate Rule
+
+<RequestExample>
+```bash Create Rate Rule
+curl -X POST https://api.example.com/clients/770e8400-e29b-41d4-a716-446655440000/rates \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Standard Rates 2026",
+    "baseRatePerHour": 75.00,
+    "overtimeRatePerHour": 112.50,
+    "currency": "EUR",
+    "overtimeTriggers": ["WEEKEND", "AFTER_HOURS"],
+    "workdayStartTime": "09:00",
+    "workdayEndTime": "17:00",
+    "workdays": [1, 2, 3, 4, 5],
+    "isActive": true,
+    "effectiveFrom": "2026-01-01",
+    "effectiveTo": "2026-12-31"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "772e8400-e29b-41d4-a716-446655440000",
+    "clientId": "770e8400-e29b-41d4-a716-446655440000",
+    "name": "Standard Rates 2026",
+    "baseRatePerHour": "75.00",
+    "overtimeRatePerHour": "112.50",
+    "currency": "EUR",
+    "overtimeTriggers": ["WEEKEND", "AFTER_HOURS"],
+    "workdayStartTime": "09:00",
+    "workdayEndTime": "17:00",
+    "workdays": [1, 2, 3, 4, 5],
+    "isActive": true,
+    "effectiveFrom": "2026-01-01T00:00:00.000Z",
+    "effectiveTo": "2026-12-31T00:00:00.000Z",
+    "resources": [],
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z",
+    "createdBy": "440e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="clientId" type="string" required>
+  UUID of the client
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Rate rule name (1-100 characters)
+</ParamField>
+
+<ParamField body="baseRatePerHour" type="number">
+  Base hourly rate (used when not overtime)
+  
+  Can be `null` if using only resources with individual rates
+</ParamField>
+
+<ParamField body="overtimeRatePerHour" type="number" required>
+  Overtime hourly rate (min: 0)
+</ParamField>
+
+<ParamField body="currency" type="string" default="EUR">
+  Three-letter currency code (e.g., "EUR", "USD", "GBP")
+</ParamField>
+
+<ParamField body="overtimeTriggers" type="array" default="[]">
+  Array of overtime trigger types:
+  - `WEEKEND`: Saturdays and Sundays
+  - `AFTER_HOURS`: Outside workday hours
+  - `MANUAL`: User can manually mark as overtime
+</ParamField>
+
+<ParamField body="workdayStartTime" type="string">
+  Workday start time in HH:mm format (e.g., "09:00")
+  
+  Required if using `AFTER_HOURS` trigger
+</ParamField>
+
+<ParamField body="workdayEndTime" type="string">
+  Workday end time in HH:mm format (e.g., "17:00")
+  
+  Required if using `AFTER_HOURS` trigger
+</ParamField>
+
+<ParamField body="workdays" type="array" default="[1,2,3,4,5]">
+  Array of workday numbers (0=Sunday, 1=Monday, ..., 6=Saturday)
+  
+  Default is Monday-Friday `[1,2,3,4,5]`
+</ParamField>
+
+<ParamField body="isActive" type="boolean" default="true">
+  Whether rate rule is active
+</ParamField>
+
+<ParamField body="effectiveFrom" type="string" required>
+  Date when rate rule becomes effective (ISO 8601)
+</ParamField>
+
+<ParamField body="effectiveTo" type="string">
+  Date when rate rule expires (ISO 8601, optional)
+  
+  If `null`, the rule remains active indefinitely
+</ParamField>
+
+---
+
+## Update Rate Rule
+
+<RequestExample>
+```bash Update Rate Rule
+curl -X PATCH https://api.example.com/clients/rates/772e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "overtimeRatePerHour": 125.00,
+    "effectiveTo": "2027-12-31"
+  }'
+```
+</RequestExample>
+
+### Path Parameters
+
+<ParamField path="ruleId" type="string" required>
+  UUID of the rate rule
+</ParamField>
+
+---
+
+## Delete Rate Rule
+
+<RequestExample>
+```bash Delete Rate Rule
+curl -X DELETE https://api.example.com/clients/rates/772e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<Warning>
+  Deleting a rate rule cascades to all resources under it.
+</Warning>
+
+---
+
+# Rate Rule Resources
+
+Resources define named billing rates within a rate rule (e.g., different rates for different skill levels).
+
+## Create Resource
+
+<RequestExample>
+```bash Create Resource
+curl -X POST https://api.example.com/clients/rates/772e8400-e29b-41d4-a716-446655440000/resources \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Senior Developer",
+    "baseRatePerHour": 100.00,
+    "isActive": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "773e8400-e29b-41d4-a716-446655440000",
+    "rateRuleId": "772e8400-e29b-41d4-a716-446655440000",
+    "name": "Senior Developer",
+    "baseRatePerHour": "100.00",
+    "isActive": true,
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="ruleId" type="string" required>
+  UUID of the rate rule
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Resource name (1-100 characters)
+</ParamField>
+
+<ParamField body="baseRatePerHour" type="number" required>
+  Base hourly rate for this resource (min: 0)
+</ParamField>
+
+<ParamField body="isActive" type="boolean" default="true">
+  Whether resource is active
+</ParamField>
+
+<Note>
+  Resources inherit the overtime rate from their parent rate rule. Only the base rate is defined per resource.
+</Note>
+
+---
+
+## Update Resource
+
+<RequestExample>
+```bash Update Resource
+curl -X PATCH https://api.example.com/clients/resources/773e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "baseRatePerHour": 110.00
+  }'
+```
+</RequestExample>
+
+### Path Parameters
+
+<ParamField path="resourceId" type="string" required>
+  UUID of the resource
+</ParamField>
+
+---
+
+## Delete Resource
+
+<RequestExample>
+```bash Delete Resource
+curl -X DELETE https://api.example.com/clients/resources/773e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+---
+
+# Overtime Calculation Logic
+
+## How It Works
+
+When a time entry is created or updated with a `clientId`, the system automatically:
+
+1. **Finds Active Rate Rule**
+   - Matches `clientId`
+   - `isActive = true`
+   - `effectiveFrom <= entry.date`
+   - `effectiveTo` is `null` OR `effectiveTo >= entry.date`
+   - Orders by `effectiveFrom DESC` (most recent first)
+
+2. **Evaluates Overtime Triggers** (in order)
+   - **MANUAL**: Uses `isOvertime` from request (defaults to `false`)
+   - **WEEKEND**: Checks if `entry.date.getDay()` is 0 (Sunday) or 6 (Saturday)
+   - **AFTER_HOURS**: Compares `entry.startTime` and `entry.endTime` against `workdayStartTime` and `workdayEndTime`
+
+3. **Applies Rate**
+   - If overtime: uses `overtimeRatePerHour`
+   - If not overtime: uses `baseRatePerHour` (can be `null`)
+   - Sets `appliedRatePerHour` on the time entry
+
+## Example: Weekend Overtime
+
+```json Rate Rule
+{
+  "overtimeTriggers": ["WEEKEND"],
+  "overtimeRatePerHour": 112.50
+}
+```
+
+```json Time Entry on Saturday
+{
+  "date": "2026-03-08",  // Saturday
+  "clientId": "770e8400..."
+}
+// Result: isOvertime = true, appliedRatePerHour = 112.50
+```
+
+## Example: After-Hours Overtime
+
+```json Rate Rule
+{
+  "overtimeTriggers": ["AFTER_HOURS"],
+  "workdayStartTime": "09:00",
+  "workdayEndTime": "17:00",
+  "baseRatePerHour": 75.00,
+  "overtimeRatePerHour": 112.50
+}
+```
+
+```json Time Entry Starting Early
+{
+  "date": "2026-03-04",  // Tuesday
+  "startTime": "07:00",  // Before 09:00
+  "endTime": "15:00",
+  "clientId": "770e8400..."
+}
+// Result: isOvertime = true, appliedRatePerHour = 112.50
+```
+
+## Example: Manual Overtime
+
+```json Rate Rule
+{
+  "overtimeTriggers": ["MANUAL"],
+  "overtimeRatePerHour": 112.50
+}
+```
+
+```json Time Entry with Manual Flag
+{
+  "date": "2026-03-04",
+  "isOvertime": true,  // User specifies
+  "clientId": "770e8400..."
+}
+// Result: isOvertime = true, appliedRatePerHour = 112.50
+```
+
+---
+
+# Best Practices
+
+## Rate Rule Versioning
+
+```javascript
+// Create new rate rule for 2027 while keeping 2026 active
+await createRateRule(clientId, {
+  name: "Standard Rates 2027",
+  baseRatePerHour: 80.00,
+  overtimeRatePerHour: 120.00,
+  effectiveFrom: "2027-01-01",
+  effectiveTo: null
+});
+
+// Update 2026 rule to expire
+await updateRateRule(rule2026Id, {
+  effectiveTo: "2026-12-31"
+});
+```
+
+## Default Client Setup
+
+```javascript
+// Set most common client as default
+await updateClient(primaryClientId, {
+  isDefault: true
+});
+
+// This will automatically pre-select in time entry forms
+```
+
+## Multiple Overtime Triggers
+
+```json
+{
+  "overtimeTriggers": ["WEEKEND", "AFTER_HOURS"],
+  "workdayStartTime": "09:00",
+  "workdayEndTime": "17:00"
+}
+```
+
+This configuration marks entries as overtime if:
+- Work is on Saturday or Sunday, OR
+- Work starts before 09:00 or ends after 17:00

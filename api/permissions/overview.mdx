@@ -1,0 +1,541 @@
+---
+title: 'Permissions Management'
+description: 'Endpoints for managing global permissions in the platform'
+---
+
+## Overview
+
+The Permissions API allows platform administrators to:
+- Create and manage global permissions
+- List and search permissions
+- Update permission details
+- Delete unused permissions
+
+Permissions define what actions users can perform globally across the platform. These are different from company-scoped roles and permissions.
+
+## Authentication
+
+All endpoints require:
+1. Authentication using a Bearer token in the `Authorization` header
+2. Platform admin privileges
+
+---
+
+## Create Permission
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.example.com/api/permissions \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": "COMPANY:CREATE",
+    "description": "Allows creating new companies",
+    "scope": "GLOBAL"
+  }'
+```
+</RequestExample>
+
+Creates a new global permission.
+
+### Endpoint
+
+```
+POST /api/permissions
+```
+
+### Request Body
+
+<ParamField body="key" type="string" required>
+  Permission key in format `RESOURCE:ACTION` (e.g., `COMPANY:CREATE`, `USER:DELETE`). Must be uppercase with underscores. Max 120 characters.
+</ParamField>
+
+<ParamField body="description" type="string" optional>
+  Human-readable description of what this permission allows (max 255 characters)
+</ParamField>
+
+<ParamField body="scope" type="string" default="COMPANY">
+  Permission scope. Options: `GLOBAL` or `COMPANY`. Defaults to `COMPANY`.
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The created permission object
+  
+  <Expandable title="Permission Object">
+    <ResponseField name="id" type="string">
+      Unique identifier for the permission
+    </ResponseField>
+    
+    <ResponseField name="key" type="string">
+      Permission key
+    </ResponseField>
+    
+    <ResponseField name="description" type="string" nullable>
+      Permission description
+    </ResponseField>
+    
+    <ResponseField name="scope" type="string">
+      Permission scope: `GLOBAL` or `COMPANY`
+    </ResponseField>
+    
+    <ResponseField name="_count" type="object">
+      Usage statistics
+      
+      <Expandable title="Count Object">
+        <ResponseField name="roles" type="number">
+          Number of roles using this permission
+        </ResponseField>
+        
+        <ResponseField name="userGlobalPermissions" type="number">
+          Number of users with this permission granted globally
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "key": "COMPANY:CREATE",
+    "description": "Allows creating new companies",
+    "scope": "GLOBAL",
+    "_count": {
+      "roles": 0,
+      "userGlobalPermissions": 0
+    }
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  Invalid permission key format
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Key must follow format RESOURCE:ACTION (e.g., COMPANY:CREATE)"
+}
+```
+
+<ResponseField name="409 Conflict">
+  Permission key already exists
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Permission key already exists"
+}
+```
+
+---
+
+## List Permissions
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/permissions?page=1&limit=50&scope=GLOBAL" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves a paginated list of permissions with optional filtering.
+
+### Endpoint
+
+```
+GET /api/permissions
+```
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination (min: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="50">
+  Number of items per page (min: 1, max: 100)
+</ParamField>
+
+<ParamField query="search" type="string" optional>
+  Search term to filter by key or description (case-insensitive)
+</ParamField>
+
+<ParamField query="scope" type="string" optional>
+  Filter by scope: `GLOBAL` or `COMPANY`
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array" required>
+  Array of permission objects
+</ResponseField>
+
+<ResponseField name="pagination" type="object" required>
+  Pagination metadata
+  
+  <Expandable title="Pagination Object">
+    <ResponseField name="page" type="number">
+      Current page number
+    </ResponseField>
+    
+    <ResponseField name="limit" type="number">
+      Items per page
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of items
+    </ResponseField>
+    
+    <ResponseField name="totalPages" type="number">
+      Total number of pages
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL",
+      "_count": {
+        "roles": 2,
+        "userGlobalPermissions": 5
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "key": "USER:DELETE",
+      "description": "Allows deleting user accounts",
+      "scope": "GLOBAL",
+      "_count": {
+        "roles": 1,
+        "userGlobalPermissions": 2
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 2,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## Get All Permissions
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.example.com/api/permissions/all \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves all permissions without pagination. Useful for dropdowns and select components.
+
+### Endpoint
+
+```
+GET /api/permissions/all
+```
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array" required>
+  Array of all permission objects (simplified, without count data)
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "key": "COMPANY:CREATE",
+      "description": "Allows creating new companies",
+      "scope": "GLOBAL"
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "key": "USER:DELETE",
+      "description": "Allows deleting user accounts",
+      "scope": "GLOBAL"
+    }
+  ]
+}
+```
+
+---
+
+## Get Permission by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.example.com/api/permissions/{id} \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves a specific permission by its ID.
+
+### Endpoint
+
+```
+GET /api/permissions/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The permission object
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "key": "COMPANY:CREATE",
+    "description": "Allows creating new companies",
+    "scope": "GLOBAL",
+    "_count": {
+      "roles": 2,
+      "userGlobalPermissions": 5
+    }
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  Permission not found
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Permission not found"
+}
+```
+
+---
+
+## Update Permission
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.example.com/api/permissions/{id} \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated description for this permission"
+  }'
+```
+</RequestExample>
+
+Updates a permission's details. All fields are optional.
+
+### Endpoint
+
+```
+PATCH /api/permissions/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="key" type="string" optional>
+  New permission key (must follow RESOURCE:ACTION format)
+</ParamField>
+
+<ParamField body="description" type="string" optional>
+  New description (max 255 characters)
+</ParamField>
+
+<ParamField body="scope" type="string" optional>
+  New scope: `GLOBAL` or `COMPANY`
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  The updated permission object
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "key": "COMPANY:CREATE",
+    "description": "Updated description for this permission",
+    "scope": "GLOBAL",
+    "_count": {
+      "roles": 2,
+      "userGlobalPermissions": 5
+    }
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  Permission not found
+</ResponseField>
+
+<ResponseField name="409 Conflict">
+  New permission key already exists
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Permission key already exists"
+}
+```
+
+---
+
+## Delete Permission
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.example.com/api/permissions/{id} \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Deletes a permission. Only permissions that are not assigned to any role or user can be deleted.
+
+### Endpoint
+
+```
+DELETE /api/permissions/{id}
+```
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the permission to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Success message
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Permission deleted successfully"
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  Permission is currently in use and cannot be deleted
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Cannot delete permission. It is assigned to 2 roles and 5 users."
+}
+```
+
+<ResponseField name="404 Not Found">
+  Permission not found
+</ResponseField>
+
+```json
+{
+  "success": false,
+  "error": "Permission not found"
+}
+```
+
+---
+
+## Permission Scopes
+
+Permissions can have two scopes:
+
+### GLOBAL
+Global permissions apply across the entire platform and are not tied to any specific company. Examples:
+- `COMPANY:CREATE` - Create new companies
+- `USER:DELETE` - Delete user accounts
+- `PLATFORM:ADMIN` - Full platform administration
+
+### COMPANY
+Company-scoped permissions are managed within individual companies and assigned through roles. Examples:
+- `MEMBER:INVITE` - Invite members to a company
+- `PROJECT:CREATE` - Create projects within a company
+- `TIMESHEET:APPROVE` - Approve timesheets
+
+Global permissions can be requested by users through the Permission Requests API and must be approved by platform administrators.

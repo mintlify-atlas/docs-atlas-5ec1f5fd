@@ -1,0 +1,450 @@
+---
+title: 'Time Entry Categories'
+description: 'Categorize time entries by work type (development, training, travel, etc.)'
+---
+
+## Overview
+
+Time entry categories provide a way to classify the type of work being performed. Categories are company-specific and can be used to distinguish between billable work, training, travel, meetings, and other work types.
+
+### Key Features
+
+- **Company-scoped**: Each category belongs to a single company
+- **Color Coding**: Visual identification with hex color codes
+- **Default Category**: Mark one category as default for quick entry creation
+- **Active/Inactive Status**: Control which categories are available for selection
+- **Unique Names**: Category names must be unique within a company
+
+## Authentication
+
+All endpoints require:
+- Valid JWT authentication token
+- Platform admin role (checked via middleware)
+
+---
+
+## Create Category
+
+<RequestExample>
+```bash Create Category
+curl -X POST https://api.example.com/categories \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Development",
+    "color": "#6366F1",
+    "isDefault": false,
+    "isActive": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "880e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Development",
+    "color": "#6366F1",
+    "isDefault": false,
+    "isActive": true,
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z",
+    "createdBy": "440e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+</ResponseExample>
+
+### Request Body
+
+<ParamField body="companyId" type="string" required>
+  UUID of the company this category belongs to
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Category name (1-100 characters)
+  
+  Must be unique within the company
+</ParamField>
+
+<ParamField body="color" type="string" default="#6366F1">
+  Hex color code for visual identification (e.g., "#6366F1")
+  
+  Must match pattern: `^#[0-9A-Fa-f]{6}$`
+</ParamField>
+
+<ParamField body="isDefault" type="boolean" default="false">
+  Whether this category should be pre-selected when creating new time entries
+  
+  <Note>
+    Only one category per company can be marked as default. Application logic should enforce this in the UI.
+  </Note>
+</ParamField>
+
+<ParamField body="isActive" type="boolean" default="true">
+  Whether the category is active and available for selection
+</ParamField>
+
+### Response Fields
+
+All request fields plus:
+
+- `id`: Generated UUID
+- `createdAt`, `updatedAt`: Timestamps
+- `createdBy`: User ID who created the category
+
+---
+
+## List Categories
+
+<RequestExample>
+```bash List Categories
+curl -X GET "https://api.example.com/categories?companyId=550e8400-e29b-41d4-a716-446655440000&isActive=true" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "companyId": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Development",
+      "color": "#6366F1",
+      "isDefault": true,
+      "isActive": true,
+      "createdAt": "2026-03-04T15:30:00.000Z",
+      "updatedAt": "2026-03-04T15:30:00.000Z"
+    },
+    {
+      "id": "881e8400-e29b-41d4-a716-446655440000",
+      "companyId": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Training",
+      "color": "#F59E0B",
+      "isDefault": false,
+      "isActive": true,
+      "createdAt": "2026-03-04T15:31:00.000Z",
+      "updatedAt": "2026-03-04T15:31:00.000Z"
+    },
+    {
+      "id": "882e8400-e29b-41d4-a716-446655440000",
+      "companyId": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Travel",
+      "color": "#8B5CF6",
+      "isDefault": false,
+      "isActive": true,
+      "createdAt": "2026-03-04T15:32:00.000Z",
+      "updatedAt": "2026-03-04T15:32:00.000Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Query Parameters
+
+<ParamField query="companyId" type="string" required>
+  Filter by company UUID
+</ParamField>
+
+<ParamField query="isActive" type="boolean">
+  Filter by active status
+  
+  - `true`: Only active categories
+  - `false`: Only inactive categories
+  - Omit: All categories
+</ParamField>
+
+<Note>
+  Unlike other list endpoints, categories do not support pagination. All categories for the company are returned in a single response.
+</Note>
+
+---
+
+## Update Category
+
+<RequestExample>
+```bash Update Category
+curl -X PATCH https://api.example.com/categories/880e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Software Development",
+    "color": "#3B82F6",
+    "isDefault": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "880e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Software Development",
+    "color": "#3B82F6",
+    "isDefault": true,
+    "isActive": true,
+    "updatedAt": "2026-03-04T16:00:00.000Z"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the category to update
+</ParamField>
+
+### Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+<ParamField body="name" type="string">
+  Update category name (1-100 characters)
+  
+  Must remain unique within the company
+</ParamField>
+
+<ParamField body="color" type="string">
+  Update hex color code (must match `^#[0-9A-Fa-f]{6}$`)
+</ParamField>
+
+<ParamField body="isDefault" type="boolean">
+  Set as default category
+  
+  <Warning>
+    When setting `isDefault: true`, you should ensure only one category per company has this flag. Implement application logic to clear the flag from other categories.
+  </Warning>
+</ParamField>
+
+<ParamField body="isActive" type="boolean">
+  Update active status
+</ParamField>
+
+---
+
+## Delete Category
+
+<RequestExample>
+```bash Delete Category
+curl -X DELETE https://api.example.com/categories/880e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "message": "Category deleted successfully"
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the category to delete
+</ParamField>
+
+<Warning>
+  When a category is deleted:
+  - All time entries linked to this category will have their `categoryId` set to `null` (cascade: `SetNull`)
+  - This is a permanent operation and cannot be undone
+  - Consider marking the category as inactive instead if you want to preserve the relationship
+</Warning>
+
+---
+
+## Category Colors
+
+### Default Color
+
+The default category color is `#6366F1` (indigo).
+
+### Recommended Colors by Type
+
+| Category Type | Suggested Color | Hex Code |
+|---------------|-----------------|----------|
+| Development | Indigo | `#6366F1` |
+| Training | Amber | `#F59E0B` |
+| Travel | Purple | `#8B5CF6` |
+| Meetings | Blue | `#3B82F6` |
+| Maintenance | Green | `#10B981` |
+| Support | Red | `#EF4444` |
+| Planning | Pink | `#EC4899` |
+| Documentation | Cyan | `#06B6D4` |
+
+---
+
+## Common Category Setups
+
+### Standard Work Categories
+
+```json
+[
+  { "name": "Development", "color": "#6366F1", "isDefault": true },
+  { "name": "Code Review", "color": "#8B5CF6" },
+  { "name": "Testing", "color": "#10B981" },
+  { "name": "Documentation", "color": "#06B6D4" },
+  { "name": "Meetings", "color": "#3B82F6" }
+]
+```
+
+### Professional Services Categories
+
+```json
+[
+  { "name": "Billable Work", "color": "#10B981", "isDefault": true },
+  { "name": "Internal", "color": "#6366F1" },
+  { "name": "Training", "color": "#F59E0B" },
+  { "name": "Travel", "color": "#8B5CF6" },
+  { "name": "Admin", "color": "#64748B" }
+]
+```
+
+### Consulting Categories
+
+```json
+[
+  { "name": "Client Consulting", "color": "#3B82F6", "isDefault": true },
+  { "name": "Research", "color": "#8B5CF6" },
+  { "name": "Proposal Writing", "color": "#EC4899" },
+  { "name": "Client Meetings", "color": "#10B981" },
+  { "name": "Travel", "color": "#F97316" }
+]
+```
+
+---
+
+## Best Practices
+
+### Naming Conventions
+
+1. **Be Specific**: Use clear names like "Client Meetings" instead of just "Meetings"
+2. **Keep It Short**: Aim for 1-2 words when possible
+3. **Be Consistent**: Use similar naming patterns across categories (e.g., all verbs or all nouns)
+4. **Avoid Abbreviations**: Use "Development" instead of "Dev" for clarity
+
+### Default Category Strategy
+
+```javascript
+// Set the most commonly used category as default
+await updateCategory(developmentCategoryId, {
+  isDefault: true
+});
+
+// This will be pre-selected in time entry forms
+```
+
+### Active Status Management
+
+```javascript
+// Archive old categories instead of deleting
+await updateCategory(oldCategoryId, {
+  isActive: false,
+  name: "[ARCHIVED] Old Category Name"
+});
+```
+
+### Unique Name Constraint
+
+The database enforces unique category names per company:
+
+```sql
+@@unique([companyId, name])
+```
+
+If you attempt to create a duplicate:
+
+```json Error Response
+{
+  "success": false,
+  "error": "A category with this name already exists in this company"
+}
+```
+
+---
+
+## Integration Examples
+
+### Creating categories for a new company
+
+```javascript
+const categories = [
+  { name: "Development", color: "#6366F1", isDefault: true },
+  { name: "Training", color: "#F59E0B" },
+  { name: "Travel", color: "#8B5CF6" },
+  { name: "Meetings", color: "#3B82F6" },
+];
+
+for (const category of categories) {
+  await fetch('https://api.example.com/categories', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      companyId: newCompany.id,
+      ...category,
+      isActive: true
+    })
+  });
+}
+```
+
+### Using categories in time entry forms
+
+```javascript
+// Fetch active categories for dropdown
+const response = await fetch(
+  `https://api.example.com/categories?companyId=${companyId}&isActive=true`,
+  { headers: { 'Authorization': `Bearer ${token}` } }
+);
+
+const { data: categories } = await response.json();
+
+// Find default category
+const defaultCategory = categories.find(c => c.isDefault);
+
+// Pre-populate form
+setFormData({
+  ...formData,
+  categoryId: defaultCategory?.id || categories[0]?.id
+});
+```
+
+### Color-coded time reporting
+
+```javascript
+// Group time entries by category for visual report
+const entriesByCategory = timeEntries.reduce((acc, entry) => {
+  const categoryName = entry.category?.name || 'Uncategorized';
+  const categoryColor = entry.category?.color || '#64748B';
+  
+  if (!acc[categoryName]) {
+    acc[categoryName] = {
+      color: categoryColor,
+      hours: 0,
+      entries: []
+    };
+  }
+  
+  acc[categoryName].hours += parseFloat(entry.hours);
+  acc[categoryName].entries.push(entry);
+  
+  return acc;
+}, {});
+```

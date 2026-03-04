@@ -1,0 +1,287 @@
+---
+title: 'Multi-Tenancy Architecture'
+description: 'Understand how the Platform API handles multi-tenant workspaces with isolated company data'
+icon: 'building'
+---
+
+## Overview
+
+The Platform API is built on a **multi-tenant architecture** where each company represents an isolated workspace (tenant). Users can belong to multiple companies, and all company data is completely isolated from other tenants.
+
+## Core Concepts
+
+### Companies as Tenants
+
+Each **Company** represents an independent workspace with:
+
+- **Unique identifier**: UUID-based company ID
+- **Slug**: Human-readable unique identifier for URLs (e.g., `acme-corp`)
+- **Metadata**: Flexible JSON field for custom tenant configuration
+- **Status**: Controls tenant access and availability
+- **Soft delete**: Archive companies without data loss
+
+```typescript Company Model
+{
+  id: "uuid",
+  name: "Acme Corporation",
+  slug: "acme-corp",
+  logo: "https://...",
+  description: "...",
+  metadata: {},
+  status: "ACTIVE" | "SUSPENDED",
+  deletedAt: null,
+  createdAt: "2024-01-01T00:00:00Z",
+  updatedAt: "2024-01-01T00:00:00Z"
+}
+```
+
+### Tenant Status
+
+Companies can have the following statuses:
+
+<AccordionGroup>
+  <Accordion title="ACTIVE" icon="circle-check" iconType="solid" color="green">
+    The company is fully operational. Members can access all resources and features.
+  </Accordion>
+  
+  <Accordion title="SUSPENDED" icon="circle-pause" iconType="solid" color="red">
+    The company is suspended. Access is blocked for all members except platform admins. This status is automatically applied when a company is soft-deleted.
+  </Accordion>
+</AccordionGroup>
+
+## Data Isolation
+
+### Automatic Tenant Scoping
+
+All tenant-scoped resources are automatically isolated by `companyId`:
+
+- **Memberships**: User-Company relationships
+- **Roles & Permissions**: Company-specific RBAC configuration
+- **Projects**: Company work items
+- **Time Entries**: Employee time tracking
+- **Clients**: Company customer records
+- **Invitations**: Member invite management
+
+### Access Control Middleware
+
+The API uses middleware to enforce tenant boundaries:
+
+```typescript Example: Company Access Check
+const checkCompanyAccess = async (req, res, next) => {
+  const userId = req.user.userId;
+  const companyId = req.params.companyId;
+
+  // Platform admins bypass all checks
+  if (req.isPlatformAdmin) {
+    return next();
+  }
+
+  // Check if user has membership in this company
+  const membership = await prisma.membership.findUnique({
+    where: {
+      companyId_userId: { companyId, userId }
+    }
+  });
+
+  if (!membership) {
+    throw ApiError.forbidden('You do not have access to this company');
+  }
+
+  next();
+};
+```
+
+See [company-access.middleware.ts:11-49](/workspace/source/src/common/middlewares/company-access.middleware.ts)
+
+### Database-Level Isolation
+
+The database schema enforces isolation through:
+
+1. **Foreign Keys**: All tenant resources reference `companyId`
+2. **Composite Indexes**: Optimized queries on `(companyId, ...)`
+3. **Cascade Deletes**: Removing a company cascades to all related resources
+4. **Unique Constraints**: Tenant-scoped uniqueness (e.g., `companyId + name` for roles)
+
+## Company Lifecycle
+
+### 1. Creation
+
+Companies can be created through:
+
+<Steps>
+  <Step title="Platform Admin Invite">
+    Admin creates a `CompanyInvite` with a secure token. The invited user registers and creates their company using the invite token.
+  </Step>
+  
+  <Step title="User Request Flow">
+    User submits a `CompanyRequest` with company details. Platform admin reviews and approves/rejects the request. User creates company after approval.
+  </Step>
+  
+  <Step title="Direct Creation (with permission)">
+    Users with the `companies.create` global permission can directly create companies without approval.
+  </Step>
+</Steps>
+
+### 2. Initialization
+
+When a company is created, the system automatically:
+
+```typescript Default Setup
+// 1. Create 4 default roles
+const roles = {
+  Owner: { color: "#EF4444", isSystem: true, isDefault: false },
+  Admin: { color: "#F59E0B", isSystem: true, isDefault: false },
+  Manager: { color: "#3B82F6", isSystem: false, isDefault: false },
+  Member: { color: "#6B7280", isSystem: true, isDefault: true }
+};
+
+// 2. Create ACTIVE membership for creator
+const membership = {
+  companyId: company.id,
+  userId: creatorId,
+  status: "ACTIVE",
+  activatedAt: new Date()
+};
+
+// 3. Assign Owner role to creator
+await assignRole(membership.id, roles.Owner.id);
+
+// 4. Send member invitations (optional)
+for (const invite of inviteMembers) {
+  await createMemberInvite({
+    companyId: company.id,
+    email: invite.email,
+    defaultRoleId: invite.roleId || roles.Member.id,
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000
+  });
+}
+```
+
+See [companies.service.ts:26-169](/workspace/source/src/modules/companies/services/companies.service.ts)
+
+### 3. Active Usage
+
+During normal operation:
+
+- **Members** interact with company resources through their memberships
+- **Roles** define what actions members can perform
+- **Permissions** are scoped to the company (with exceptions for global permissions)
+- **Data** is isolated and never accessible across company boundaries
+
+### 4. Suspension
+
+Companies can be suspended by platform admins:
+
+```typescript
+PUT /api/companies/:id
+{
+  "status": "SUSPENDED"
+}
+```
+
+Effects:
+- All members lose access (except platform admins)
+- API requests to company resources return 403 Forbidden
+- Company appears as suspended in listings
+
+### 5. Soft Delete
+
+Companies can be soft-deleted (archived):
+
+```typescript
+DELETE /api/companies/:id
+```
+
+Effects:
+- Sets `deletedAt` timestamp and `status: SUSPENDED`
+- Company hidden from default listings
+- All relationships preserved for potential restoration
+- Can be restored by platform admins:
+
+```typescript
+POST /api/companies/:id/restore
+```
+
+## Multi-Tenancy Patterns
+
+### User Context Switching
+
+Users can belong to multiple companies and switch between them:
+
+```typescript User's Companies
+GET /api/companies
+
+// Response: List of companies user has membership in
+{
+  "companies": [
+    { "id": "uuid-1", "name": "Acme Corp", "slug": "acme-corp" },
+    { "id": "uuid-2", "name": "Beta Inc", "slug": "beta-inc" }
+  ]
+}
+```
+
+The client application should:
+
+1. Store the currently selected `companyId` in state
+2. Include it in API requests where needed
+3. Switch context when user selects a different company
+4. Refresh permissions and roles for the new context
+
+### Platform Admin Override
+
+Platform administrators have special privileges:
+
+- **Access all companies** regardless of membership
+- **Bypass permission checks** within companies
+- **Manage company lifecycle** (create, suspend, delete, restore)
+- **View and manage all members** across companies
+
+The `isPlatformAdmin` flag is set by middleware and checked throughout the system:
+
+```typescript
+// Set by platform-admin.middleware.ts
+req.isPlatformAdmin = true;
+
+// Checked in access control
+if (req.isPlatformAdmin) {
+  return next(); // Bypass tenant checks
+}
+```
+
+See [platform-admin.middleware.ts:18-41](/workspace/source/src/common/middlewares/platform-admin.middleware.ts)
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Filter by Company" icon="filter">
+    When querying tenant-scoped resources, always include `companyId` in your WHERE clause to prevent accidental cross-tenant data leaks.
+  </Card>
+  
+  <Card title="Use Middleware" icon="shield">
+    Apply `checkCompanyAccess` middleware to all company-scoped routes to enforce tenant boundaries at the API level.
+  </Card>
+  
+  <Card title="Validate Company Context" icon="check">
+    Before creating resources, verify that all referenced entities (users, roles, projects, etc.) belong to the same company.
+  </Card>
+  
+  <Card title="Test Isolation" icon="vial">
+    Write integration tests that verify users cannot access data from companies they don't belong to.
+  </Card>
+</CardGroup>
+
+## Related Concepts
+
+<CardGroup cols={2}>
+  <Card title="Memberships" icon="users" href="/concepts/memberships">
+    Learn how users connect to companies through memberships
+  </Card>
+  
+  <Card title="RBAC" icon="key" href="/concepts/rbac">
+    Understand role-based access control within companies
+  </Card>
+  
+  <Card title="Invitations" icon="envelope" href="/concepts/invitations">
+    Explore company creation and member invitation flows
+  </Card>
+</CardGroup>

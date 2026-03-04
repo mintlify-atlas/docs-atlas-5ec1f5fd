@@ -1,0 +1,595 @@
+---
+title: 'Company Requests'
+description: 'Submit and manage company creation requests'
+---
+
+## Authentication
+
+All company request endpoints require authentication:
+
+```
+Authorization: Bearer <access_token>
+```
+
+## Overview
+
+Company requests allow users to submit requests to create a new company. These requests must be reviewed and approved by platform administrators before the company can be created.
+
+<Info>
+  This workflow is an alternative to direct company creation (which requires the `COMPANY:CREATE` global permission). Users can submit requests without special permissions, and admins can review and approve them.
+</Info>
+
+---
+
+## Create Company Request
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.example.com/api/company-requests" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyName": "Tech Innovations Inc.",
+    "companySlug": "tech-innovations",
+    "description": "A company focused on innovative technology solutions",
+    "reason": "I would like to create this company to manage our growing team"
+  }'
+```
+</RequestExample>
+
+### Request Body
+
+<ParamField body="companyName" type="string" required>
+  Proposed company name (min: 2, max: 255 characters)
+</ParamField>
+
+<ParamField body="companySlug" type="string" required>
+  Proposed URL-friendly company identifier (min: 2, max: 80 characters). Must contain only lowercase letters, numbers, and hyphens.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Company description explaining what the company does
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Reason for requesting company creation (helps admins with approval decision)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Created company request object
+  
+  <Expandable title="Company Request Object">
+    <ResponseField name="id" type="string">
+      Request's unique identifier (UUID)
+    </ResponseField>
+    
+    <ResponseField name="userId" type="string">
+      ID of the user who submitted the request
+    </ResponseField>
+    
+    <ResponseField name="companyName" type="string">
+      Proposed company name
+    </ResponseField>
+    
+    <ResponseField name="companySlug" type="string">
+      Proposed company slug
+    </ResponseField>
+    
+    <ResponseField name="description" type="string" nullable>
+      Company description
+    </ResponseField>
+    
+    <ResponseField name="reason" type="string" nullable>
+      Reason for the request
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Request status: `PENDING`, `APPROVED`, `REJECTED`, `COMPLETED`, or `CANCELLED`
+    </ResponseField>
+    
+    <ResponseField name="reviewedBy" type="string" nullable>
+      ID of the admin who reviewed the request
+    </ResponseField>
+    
+    <ResponseField name="reviewedAt" type="string" nullable>
+      ISO 8601 timestamp of when the request was reviewed
+    </ResponseField>
+    
+    <ResponseField name="reviewNotes" type="string" nullable>
+      Admin's notes about the review decision
+    </ResponseField>
+    
+    <ResponseField name="createdCompanyId" type="string" nullable>
+      ID of the company created from this request (if approved and completed)
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of request creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Tech Innovations Inc.",
+    "companySlug": "tech-innovations",
+    "description": "A company focused on innovative technology solutions",
+    "reason": "I would like to create this company to manage our growing team",
+    "status": "PENDING",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdCompanyId": null,
+    "createdAt": "2024-03-04T10:00:00Z",
+    "updatedAt": "2024-03-04T10:00:00Z"
+  },
+  "message": "Company request submitted successfully. An admin will review it soon."
+}
+```
+</ResponseExample>
+
+---
+
+## List User's Requests
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/company-requests?status=PENDING&page=1&limit=10" \
+  -H "Authorization: Bearer <access_token>"
+```
+</RequestExample>
+
+<ParamField query="status" type="string">
+  Filter by request status. Options: `PENDING`, `APPROVED`, `REJECTED`, `COMPLETED`, `CANCELLED`
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination (minimum: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page (minimum: 1, maximum: 100)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of company request objects
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  Pagination metadata
+  
+  <Expandable title="Pagination Object">
+    <ResponseField name="page" type="number">
+      Current page number
+    </ResponseField>
+    
+    <ResponseField name="limit" type="number">
+      Results per page
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of results
+    </ResponseField>
+    
+    <ResponseField name="totalPages" type="number">
+      Total number of pages
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "userId": "550e8400-e29b-41d4-a716-446655440000",
+      "companyName": "Tech Innovations Inc.",
+      "companySlug": "tech-innovations",
+      "description": "A company focused on innovative technology solutions",
+      "reason": "I would like to create this company to manage our growing team",
+      "status": "PENDING",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "reviewNotes": null,
+      "createdCompanyId": null,
+      "createdAt": "2024-03-04T10:00:00Z",
+      "updatedAt": "2024-03-04T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 3,
+    "totalPages": 1
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Get Request by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/company-requests/{id}" \
+  -H "Authorization: Bearer <access_token>"
+```
+</RequestExample>
+
+<ParamField path="id" type="string" required>
+  Request's unique identifier (UUID)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Company request object with user details
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Tech Innovations Inc.",
+    "companySlug": "tech-innovations",
+    "description": "A company focused on innovative technology solutions",
+    "reason": "I would like to create this company to manage our growing team",
+    "status": "PENDING",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdCompanyId": null,
+    "createdAt": "2024-03-04T10:00:00Z",
+    "updatedAt": "2024-03-04T10:00:00Z",
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "john.doe@example.com",
+      "fullName": "John Doe"
+    }
+  }
+}
+```
+</ResponseExample>
+
+<Info>
+  Users can only view their own requests. Platform admins can view all requests.
+</Info>
+
+---
+
+## Update Request
+
+<RequestExample>
+```bash cURL
+curl -X PATCH "https://api.example.com/api/company-requests/{id}" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyName": "Tech Innovations LLC",
+    "description": "Updated company description"
+  }'
+```
+</RequestExample>
+
+<ParamField path="id" type="string" required>
+  Request's unique identifier (UUID)
+</ParamField>
+
+### Request Body
+
+All fields are optional. Only provide the fields you want to update.
+
+<ParamField body="companyName" type="string">
+  Updated company name (min: 2, max: 255 characters)
+</ParamField>
+
+<ParamField body="companySlug" type="string">
+  Updated company slug (min: 2, max: 80 characters). Must contain only lowercase letters, numbers, and hyphens.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated company description
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Updated reason for the request
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Updated company request object
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Tech Innovations LLC",
+    "companySlug": "tech-innovations",
+    "description": "Updated company description",
+    "reason": "I would like to create this company to manage our growing team",
+    "status": "PENDING",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdCompanyId": null,
+    "createdAt": "2024-03-04T10:00:00Z",
+    "updatedAt": "2024-03-04T10:15:00Z"
+  },
+  "message": "Company request updated successfully"
+}
+```
+</ResponseExample>
+
+<Warning>
+  Only pending requests can be updated. Once a request has been approved, rejected, or cancelled, it cannot be modified.
+</Warning>
+
+---
+
+## Cancel Request
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.example.com/api/company-requests/{id}/cancel" \
+  -H "Authorization: Bearer <access_token>"
+```
+</RequestExample>
+
+<ParamField path="id" type="string" required>
+  Request's unique identifier (UUID)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Cancelled company request object
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Tech Innovations Inc.",
+    "companySlug": "tech-innovations",
+    "description": "A company focused on innovative technology solutions",
+    "reason": "I would like to create this company to manage our growing team",
+    "status": "CANCELLED",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": null,
+    "createdCompanyId": null,
+    "createdAt": "2024-03-04T10:00:00Z",
+    "updatedAt": "2024-03-04T10:20:00Z"
+  },
+  "message": "Company request cancelled"
+}
+```
+</ResponseExample>
+
+<Note>
+  Only pending requests can be cancelled. Users can only cancel their own requests.
+</Note>
+
+---
+
+## Admin: List All Requests
+
+<Warning>
+  This endpoint requires platform admin privileges.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/admin/company-requests?status=PENDING" \
+  -H "Authorization: Bearer <access_token>"
+```
+</RequestExample>
+
+<ParamField query="status" type="string">
+  Filter by request status. Options: `PENDING`, `APPROVED`, `REJECTED`, `COMPLETED`, `CANCELLED`
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results per page (max: 100)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of all company requests with user details
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  Pagination metadata
+</ResponseField>
+
+---
+
+## Admin: Review Request
+
+<Warning>
+  This endpoint requires platform admin privileges.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.example.com/api/admin/company-requests/{id}/review" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "approve",
+    "reviewNotes": "Request looks good, approved for company creation"
+  }'
+```
+</RequestExample>
+
+<ParamField path="id" type="string" required>
+  Request's unique identifier (UUID)
+</ParamField>
+
+### Request Body
+
+<ParamField body="action" type="string" required>
+  Review action. Options: `approve` or `reject`
+</ParamField>
+
+<ParamField body="reviewNotes" type="string">
+  Optional notes about the review decision
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Reviewed company request object
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json Approve
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Tech Innovations Inc.",
+    "companySlug": "tech-innovations",
+    "description": "A company focused on innovative technology solutions",
+    "reason": "I would like to create this company to manage our growing team",
+    "status": "APPROVED",
+    "reviewedBy": "880e8400-e29b-41d4-a716-446655440000",
+    "reviewedAt": "2024-03-04T11:00:00Z",
+    "reviewNotes": "Request looks good, approved for company creation",
+    "createdCompanyId": null,
+    "createdAt": "2024-03-04T10:00:00Z",
+    "updatedAt": "2024-03-04T11:00:00Z"
+  },
+  "message": "Company request approved. User can now create their company."
+}
+```
+
+```json Reject
+{
+  "success": true,
+  "data": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "companyName": "Tech Innovations Inc.",
+    "companySlug": "tech-innovations",
+    "description": "A company focused on innovative technology solutions",
+    "reason": "I would like to create this company to manage our growing team",
+    "status": "REJECTED",
+    "reviewedBy": "880e8400-e29b-41d4-a716-446655440000",
+    "reviewedAt": "2024-03-04T11:00:00Z",
+    "reviewNotes": "Insufficient information provided",
+    "createdCompanyId": null,
+    "createdAt": "2024-03-04T10:00:00Z",
+    "updatedAt": "2024-03-04T11:00:00Z"
+  },
+  "message": "Company request rejected."
+}
+```
+</ResponseExample>
+
+<Info>
+  When a request is approved, the user receives the `COMPANY:CREATE` permission and can proceed to create their company. Once the company is created, the request status is updated to `COMPLETED` and the `createdCompanyId` is set.
+</Info>
+
+---
+
+## Request Status Values
+
+The `status` field can have one of the following values:
+
+<ResponseField name="PENDING">
+  Request has been submitted and is awaiting admin review
+</ResponseField>
+
+<ResponseField name="APPROVED">
+  Request has been approved by an admin. User can now create the company.
+</ResponseField>
+
+<ResponseField name="REJECTED">
+  Request has been rejected by an admin
+</ResponseField>
+
+<ResponseField name="COMPLETED">
+  Request was approved and the company has been successfully created
+</ResponseField>
+
+<ResponseField name="CANCELLED">
+  Request was cancelled by the user before review
+</ResponseField>

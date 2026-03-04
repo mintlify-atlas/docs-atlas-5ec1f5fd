@@ -1,0 +1,399 @@
+---
+title: 'Projects'
+description: 'Organize time entries into projects for better tracking and reporting'
+---
+
+## Overview
+
+Projects provide a way to categorize and organize time entries within a company. Each project has a name, optional description, and color for visual identification.
+
+### Key Features
+
+- **Company-scoped**: Each project belongs to a single company
+- **Active/Inactive Status**: Control which projects are available for new time entries
+- **Color Coding**: Visual identification with hex color codes
+- **Search Support**: Find projects by name
+- **Time Entry Tracking**: Projects track how many time entries reference them
+
+## Authentication
+
+All endpoints require:
+- Valid JWT authentication token
+- Platform admin role (checked via middleware)
+
+---
+
+## Create Project
+
+<RequestExample>
+```bash Create Project
+curl -X POST https://api.example.com/projects \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Platform API",
+    "description": "Core API development and maintenance",
+    "color": "#10B981",
+    "isActive": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "660e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Platform API",
+    "description": "Core API development and maintenance",
+    "color": "#10B981",
+    "isActive": true,
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z",
+    "createdBy": "440e8400-e29b-41d4-a716-446655440000",
+    "updatedBy": "440e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+</ResponseExample>
+
+### Request Body
+
+<ParamField body="companyId" type="string" required>
+  UUID of the company this project belongs to
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Project name (2-150 characters)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Detailed description (max 2000 characters, optional)
+</ParamField>
+
+<ParamField body="color" type="string" default="#10B981">
+  Hex color code for visual identification (e.g., "#10B981")
+  
+  Must match pattern: `^#[0-9A-Fa-f]{6}$`
+</ParamField>
+
+<ParamField body="isActive" type="boolean" default="true">
+  Whether the project is active and available for new time entries
+</ParamField>
+
+### Response Fields
+
+All request fields plus:
+
+- `id`: Generated UUID
+- `createdAt`, `updatedAt`: Timestamps
+- `createdBy`, `updatedBy`: User IDs who created/updated the project
+
+---
+
+## List Projects
+
+<RequestExample>
+```bash List Projects
+curl -X GET "https://api.example.com/projects?companyId=550e8400-e29b-41d4-a716-446655440000&page=1&limit=50&isActive=true&search=API" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440000",
+      "companyId": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Platform API",
+      "description": "Core API development and maintenance",
+      "color": "#10B981",
+      "isActive": true,
+      "createdAt": "2026-03-04T15:30:00.000Z",
+      "updatedAt": "2026-03-04T15:30:00.000Z"
+    },
+    {
+      "id": "661e8400-e29b-41d4-a716-446655440000",
+      "companyId": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Mobile API",
+      "description": "Mobile application backend services",
+      "color": "#3B82F6",
+      "isActive": true,
+      "createdAt": "2026-03-03T10:00:00.000Z",
+      "updatedAt": "2026-03-03T10:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 2,
+    "totalPages": 1
+  }
+}
+```
+</ResponseExample>
+
+### Query Parameters
+
+<ParamField query="companyId" type="string" required>
+  Filter by company UUID
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  Page number (min: 1)
+</ParamField>
+
+<ParamField query="limit" type="number" default="50">
+  Items per page (1-500)
+</ParamField>
+
+<ParamField query="isActive" type="boolean">
+  Filter by active status
+  
+  - `true`: Only active projects
+  - `false`: Only inactive projects
+  - Omit: All projects
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search projects by name (case-insensitive partial match)
+</ParamField>
+
+---
+
+## Get Project by ID
+
+<RequestExample>
+```bash Get Project
+curl -X GET https://api.example.com/projects/660e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "660e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Platform API",
+    "description": "Core API development and maintenance",
+    "color": "#10B981",
+    "isActive": true,
+    "createdAt": "2026-03-04T15:30:00.000Z",
+    "updatedAt": "2026-03-04T15:30:00.000Z",
+    "createdBy": "440e8400-e29b-41d4-a716-446655440000",
+    "updatedBy": "440e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the project
+</ParamField>
+
+---
+
+## Update Project
+
+<RequestExample>
+```bash Update Project
+curl -X PATCH https://api.example.com/projects/660e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Platform API v2",
+    "color": "#6366F1",
+    "isActive": false
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "data": {
+    "id": "660e8400-e29b-41d4-a716-446655440000",
+    "companyId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Platform API v2",
+    "description": "Core API development and maintenance",
+    "color": "#6366F1",
+    "isActive": false,
+    "updatedAt": "2026-03-04T16:00:00.000Z",
+    "updatedBy": "440e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the project to update
+</ParamField>
+
+### Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+<ParamField body="name" type="string">
+  Update project name (2-150 characters)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Update description (max 2000 characters)
+</ParamField>
+
+<ParamField body="color" type="string">
+  Update hex color code (must match `^#[0-9A-Fa-f]{6}$`)
+</ParamField>
+
+<ParamField body="isActive" type="boolean">
+  Update active status
+  
+  <Note>
+    Marking a project as inactive (`isActive: false`) does not affect existing time entries linked to it, but prevents the project from being selected for new entries in UI applications.
+  </Note>
+</ParamField>
+
+---
+
+## Delete Project
+
+<RequestExample>
+```bash Delete Project
+curl -X DELETE https://api.example.com/projects/660e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "message": "Project deleted successfully"
+}
+```
+</ResponseExample>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the project to delete
+</ParamField>
+
+<Warning>
+  When a project is deleted:
+  - All time entries linked to this project will have their `projectId` set to `null` (cascade: `SetNull`)
+  - This is a permanent operation and cannot be undone
+  - Consider marking the project as inactive instead if you want to preserve the relationship
+</Warning>
+
+---
+
+## Project Colors
+
+### Default Color
+
+The default project color is `#10B981` (emerald green).
+
+### Recommended Colors
+
+For visual consistency, consider using these Tailwind-inspired colors:
+
+| Color Name | Hex Code | Preview |
+|------------|----------|----------|
+| Emerald    | `#10B981` | <span style={{"backgroundColor": "#10B981", "color": "white", "padding": "2px 8px", "borderRadius": "4px"}}>Sample</span> |
+| Blue       | `#3B82F6` | <span style={{"backgroundColor": "#3B82F6", "color": "white", "padding": "2px 8px", "borderRadius": "4px"}}>Sample</span> |
+| Indigo     | `#6366F1` | <span style={{"backgroundColor": "#6366F1", "color": "white", "padding": "2px 8px", "borderRadius": "4px"}}>Sample</span> |
+| Purple     | `#8B5CF6` | <span style={{"backgroundColor": "#8B5CF6", "color": "white", "padding": "2px 8px", "borderRadius": "4px"}}>Sample</span> |
+| Pink       | `#EC4899` | <span style={{"backgroundColor": "#EC4899", "color": "white", "padding": "2px 8px", "borderRadius": "4px"}}>Sample</span> |
+| Orange     | `#F97316` | <span style={{"backgroundColor": "#F97316", "color": "white", "padding": "2px 8px", "borderRadius": "4px"}}>Sample</span> |
+
+---
+
+## Best Practices
+
+### Project Organization
+
+1. **Use Descriptive Names**: Make project names clear and specific (e.g., "Mobile App Backend" vs. "Project 1")
+2. **Set Colors Strategically**: Use different colors for different types of projects or clients
+3. **Archive Instead of Delete**: Set `isActive: false` instead of deleting projects to maintain time entry history
+4. **Add Descriptions**: Use the description field to document project scope, client information, or billing details
+
+### Active Status Management
+
+```json Example: Archiving a completed project
+{
+  "isActive": false,
+  "description": "Core API development and maintenance [ARCHIVED 2026-03-04: Project completed]"
+}
+```
+
+### Search and Filtering
+
+```bash Finding all active projects with "API" in the name
+curl "https://api.example.com/projects?companyId=550e8400&isActive=true&search=API"
+```
+
+---
+
+## Common Use Cases
+
+### 1. Setting up projects for a new company
+
+```javascript
+const projects = [
+  { name: "Internal Development", color: "#10B981" },
+  { name: "Client Work", color: "#3B82F6" },
+  { name: "Maintenance", color: "#6366F1" },
+  { name: "Training", color: "#F59E0B" },
+];
+
+for (const project of projects) {
+  await createProject({
+    companyId: company.id,
+    ...project,
+    isActive: true
+  });
+}
+```
+
+### 2. Deactivating old projects at year-end
+
+```javascript
+const oldProjects = await listProjects({
+  companyId: company.id,
+  isActive: true
+});
+
+for (const project of oldProjects.data) {
+  if (project.lastUsed < '2025-12-31') {
+    await updateProject(project.id, { isActive: false });
+  }
+}
+```
+
+### 3. Bulk color update for client projects
+
+```javascript
+const clientProjects = await listProjects({
+  companyId: company.id,
+  search: "Client -"
+});
+
+for (const project of clientProjects.data) {
+  await updateProject(project.id, { color: "#3B82F6" });
+}
+```

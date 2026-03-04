@@ -1,0 +1,91 @@
+---
+title: 'Logout'
+api: 'POST /api/auth/logout'
+description: 'Logout and revoke refresh token'
+---
+
+Logs out the current user by revoking their refresh token. This prevents the refresh token from being used to obtain new access tokens. Requires authentication.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with a valid access token.
+  
+  Format: `Bearer <access_token>`
+</ParamField>
+
+## Request Body
+
+<ParamField body="refreshToken" type="string" required>
+  The refresh token to revoke. Must belong to the authenticated user.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message confirming logout.
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Missing or invalid access token.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Unauthorized",
+      "statusCode": 401
+    }
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 Bad Request">
+  Invalid request body or validation error.
+  
+  ```json
+  {
+    "success": false,
+    "error": {
+      "message": "Validation error",
+      "statusCode": 400,
+      "details": []
+    }
+  }
+  ```
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.example.com/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{
+    "refreshToken": "rt_clx1234567890abcdef"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+## Notes
+
+- After logout, the access token remains valid until it expires naturally
+- The refresh token is immediately revoked and cannot be used again
+- Client applications should discard both tokens after calling this endpoint
+- This endpoint requires a valid, non-expired access token
+
+

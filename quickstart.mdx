@@ -1,80 +1,418 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick Start'
+description: 'Get the Platform API up and running locally in minutes with this step-by-step guide'
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+Before you begin, ensure you have the following installed on your system:
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+<CardGroup cols={3}>
+  <Card title="Node.js 18+" icon="node-js">
+    JavaScript runtime
+  </Card>
+  <Card title="PostgreSQL 16+" icon="database">
+    Relational database
+  </Card>
+  <Card title="Docker (Optional)" icon="docker">
+    For containerized PostgreSQL
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Steps>
+  <Step title="Clone the Repository">
+    First, clone the Platform API repository to your local machine:
+
+    ```bash
+    git clone https://github.com/LeonardoCaero/platform-api.git
+    cd platform-api
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    This will install the following key dependencies:
+    - Express.js 5.2 - Web framework
+    - Prisma 7.2 - Database ORM
+    - TypeScript 5.9 - Type-safe development
+    - Zod 4.2 - Schema validation
+    - jsonwebtoken 9.0 - JWT authentication
+    - bcryptjs 3.0 - Password hashing
+    - Winston 3.19 - Logging
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Copy the example environment file and configure it:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Open `.env` and update the configuration:
+
+    ```bash .env
+    # PostgreSQL Configuration
+    POSTGRES_USER=caero
+    POSTGRES_PASSWORD=change_me_strong_password
+    POSTGRES_DB=caero_db
+
+    # API Configuration
+    NODE_ENV=development
+    PORT=4000
+
+    # JWT Secrets (generate with: openssl rand -base64 48)
+    JWT_SECRET=change_me_jwt_secret_min_32_chars
+    JWT_EXPIRES_IN=15m
+    REFRESH_TOKEN_SECRET=change_me_refresh_secret_min_32_chars
+    REFRESH_TOKEN_EXPIRES_IN=7d
+
+    # Invite Expiry Settings
+    COMPANY_INVITE_EXPIRY_HOURS=72
+    MEMBER_INVITE_EXPIRY_HOURS=168
+
+    # Frontend API URL (optional)
+    VITE_API_URL=http://localhost:4000/api
+    ```
+
+    <Warning>
+      **Security**: Always generate strong, unique secrets for production environments. Never commit your `.env` file to version control.
+    </Warning>
+
+    <Tip>
+      Generate secure random secrets using:
+      ```bash
+      openssl rand -base64 48
+      ```
+    </Tip>
+  </Step>
+
+  <Step title="Start PostgreSQL Database">
+    You can start PostgreSQL using Docker or your local installation:
+
+    ### Using Docker (Recommended)
+
+    If you have Docker installed, start PostgreSQL with:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    This will start a PostgreSQL container with the credentials from your `.env` file.
+
+    ### Using Local PostgreSQL
+
+    If you have PostgreSQL installed locally, ensure it's running and create a database:
+
+    ```bash
+    # Connect to PostgreSQL
+    psql -U postgres
+
+    # Create database
+    CREATE DATABASE caero_db;
+
+    # Grant privileges
+    GRANT ALL PRIVILEGES ON DATABASE caero_db TO caero;
+    ```
+
+    <Note>
+      Make sure the database credentials in your `.env` file match your PostgreSQL setup.
+    </Note>
+  </Step>
+
+  <Step title="Initialize Database">
+    Run the database migrations and seed initial data:
+
+    ```bash
+    npm run db:rebuild
+    ```
+
+    This command performs the following actions:
+    1. Drops all existing tables (force reset)
+    2. Pushes the Prisma schema to the database
+    3. Runs the seed script to populate initial data
+
+    <Warning>
+      `db:rebuild` will **delete all existing data**. Use this only for initial setup or when you want a fresh database.
+    </Warning>
+
+    ### Alternative: Non-destructive Migration
+
+    For production or when preserving data, use:
+
+    ```bash
+    npx prisma db push
+    ```
+  </Step>
+
+  <Step title="Start the Development Server">
+    Launch the API server with hot reload:
+
+    ```bash
+    npm run dev
+    ```
+
+    The server will start on the configured port (default: `http://localhost:4000`).
+
+    You should see output similar to:
+
+    ```
+    Server is running on port 4000
+    Database connected successfully
+    ```
+
+    <Tip>
+      The development server uses `tsx watch` which automatically restarts when you make changes to the code.
+    </Tip>
+  </Step>
+
+  <Step title="Verify Health Check">
+    Test that the API is running correctly:
+
+    ```bash
+    curl http://localhost:4000/health
+    ```
+
+    You should receive a response indicating the API is healthy:
+
+    ```json
+    {
+      "status": "ok",
+      "timestamp": "2024-03-04T10:30:00.000Z"
+    }
+    ```
+  </Step>
+
+  <Step title="Make Your First API Call">
+    Let's register a new user account:
+
+    ```bash
+    curl -X POST http://localhost:4000/api/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "user@example.com",
+        "fullName": "John Doe",
+        "password": "SecurePass123",
+        "phone": "+1234567890"
+      }'
+    ```
+
+    Success response:
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "user": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "email": "user@example.com",
+          "fullName": "John Doe",
+          "phone": "+1234567890",
+          "avatar": null,
+          "emailVerified": false,
+          "createdAt": "2024-03-04T10:30:00.000Z"
+        },
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6..."
+      }
+    }
+    ```
+
+    <Note>
+      Save the `accessToken` and `refreshToken` for subsequent API calls.
+    </Note>
+  </Step>
+</Steps>
+
+## Available Scripts
+
+The Platform API includes several npm scripts for development and deployment:
+
+<CodeGroup>
+
+```bash Development
+# Start development server with hot reload
+npm run dev
+```
+
+```bash Build
+# Build for production (TypeScript compilation + path alias resolution)
+npm run build
+```
+
+```bash Production
+# Start production server
+npm start
+```
+
+```bash Database
+# Reset database and run seed (destructive)
+npm run db:rebuild
+
+# Access Prisma CLI
+npm run prisma
+
+# Example: Generate Prisma Client
+npm run prisma generate
+
+# Example: Create migration
+npm run prisma migrate dev --name your_migration_name
+```
+
+</CodeGroup>
+
+## Testing Your Setup
+
+Now that your API is running, let's test the complete authentication flow:
+
+### 1. Register a User
+
+```bash
+curl -X POST http://localhost:4000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "fullName": "Test User",
+    "password": "TestPassword123"
+  }'
+```
+
+### 2. Login
+
+```bash
+curl -X POST http://localhost:4000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "TestPassword123"
+  }'
+```
+
+### 3. Get User Profile
+
+Using the access token from registration or login:
+
+```bash
+curl http://localhost:4000/api/auth/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### 4. Refresh Token
+
+```bash
+curl -X POST http://localhost:4000/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "refreshToken": "YOUR_REFRESH_TOKEN"
+  }'
+```
+
+### 5. Logout
+
+```bash
+curl -X POST http://localhost:4000/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "refreshToken": "YOUR_REFRESH_TOKEN"
+  }'
+```
+
+## Project Structure
+
+Understanding the project structure will help you navigate the codebase:
+
+```
+platform-api/
+├── src/
+│   ├── app.ts                 # Express app configuration
+│   ├── main.ts                # Server bootstrap and startup
+│   ├── routes.ts              # Main route registry
+│   ├── common/                # Shared utilities and middleware
+│   │   ├── errors/            # Custom error classes
+│   │   ├── logger/            # Winston logger configuration
+│   │   ├── middlewares/       # Auth and validation middleware
+│   │   └── utils/             # Helper functions (JWT, tokens, async)
+│   ├── config/                # Environment configuration
+│   ├── db/                    # Prisma client instance
+│   └── modules/               # Feature modules
+│       └── auth/              # Authentication module
+│           ├── controllers/   # Request handlers
+│           ├── services/      # Business logic
+│           ├── schemas/       # Zod validation schemas
+│           └── routes/        # Route definitions
+├── prisma/
+│   ├── schema.prisma          # Database schema
+│   └── seed.ts                # Database seed script
+├── .env.example               # Environment variables template
+├── package.json               # Project dependencies
+├── tsconfig.json              # TypeScript configuration
+└── docker-compose.yml         # Docker services configuration
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    If port 4000 is already in use, change the `PORT` variable in your `.env` file:
+
+    ```bash .env
+    PORT=3000
+    ```
+
+    Then restart the server.
+  </Accordion>
+
+  <Accordion title="Database connection failed">
+    Verify that:
+    1. PostgreSQL is running: `docker ps` (for Docker) or `pg_isready` (for local)
+    2. Database credentials in `.env` are correct
+    3. Database exists: `psql -U postgres -l`
+    4. Network connectivity: `telnet localhost 5432`
+  </Accordion>
+
+  <Accordion title="Prisma schema errors">
+    If you encounter Prisma schema errors:
+
+    ```bash
+    # Generate Prisma Client
+    npx prisma generate
+
+    # Format schema
+    npx prisma format
+
+    # Validate schema
+    npx prisma validate
+    ```
+  </Accordion>
+
+  <Accordion title="JWT token errors">
+    Ensure your `JWT_SECRET` and `REFRESH_TOKEN_SECRET` are at least 32 characters long. Generate new secrets:
+
+    ```bash
+    openssl rand -base64 48
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication Guide" icon="lock" href="/authentication">
+    Learn about JWT authentication, refresh tokens, and security best practices
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference">
+    Explore all available endpoints and their parameters
+  </Card>
+  <Card title="Database Schema" icon="database" href="/database-schema">
+    Deep dive into the database structure and relationships
+  </Card>
+  <Card title="Deployment" icon="cloud" href="/deployment">
+    Deploy your Platform API to production
+  </Card>
+</CardGroup>
